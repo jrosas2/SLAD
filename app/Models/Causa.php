@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'submateria_id',
     'estado_procesal_id',
     'direccion_id',
+    'demandante_demandado',
     'accion_id',
     'estado_causa_id',
     'numero_causa',

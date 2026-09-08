@@ -27,6 +27,7 @@ class CausaFactory extends Factory
             'submateria_id' => null,
             'estado_procesal_id' => null,
             'direccion_id' => null,
+            'demandante_demandado' => fake()->optional()->company(),
             'responsable_id' => null,
             'accion_id' => null,
             'estado_causa_id' => null,

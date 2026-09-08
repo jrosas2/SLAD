@@ -210,7 +210,7 @@ new #[Title('Importación histórica')] class extends Component
             <flux:heading size="xl">Importación histórica</flux:heading>
             <flux:text>Carga el Excel anterior, revisa el análisis y confirma solo cuando los datos sean correctos.</flux:text>
         </div>
-        <flux:badge color="blue">Fase 8 · Importación inicial</flux:badge>
+        <flux:badge color="blue">Importación inicial desde Excel</flux:badge>
     </div>
 
     <flux:card class="grid gap-5">

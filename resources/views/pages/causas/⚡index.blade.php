@@ -3,6 +3,7 @@
 use App\Models\Accion;
 use App\Models\Causa;
 use App\Models\Ciudad;
+use App\Models\Direccion;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
@@ -42,6 +43,12 @@ new #[Title('Causas')] class extends Component
 
     #[Url(except: '')]
     public string $estadoCausaFilter = '';
+
+    #[Url(except: '')]
+    public string $direccionFilter = '';
+
+    #[Url(except: '')]
+    public string $demandanteDemandadoFilter = '';
 
     #[Url(except: '')]
     public string $ciudadFilter = '';
@@ -181,7 +188,7 @@ new #[Title('Causas')] class extends Component
             ->select([
                 'id', 'nombre', 'numero_causa', 'fecha_causa', 'juzgado_id', 'materia_id',
                 'submateria_id', 'responsable_id', 'estado_procesal_id', 'estado_causa_id',
-                'monto_demandado',
+                'direccion_id', 'demandante_demandado', 'monto_demandado',
             ])
             ->with([
                 'juzgado:id,ciudad_id,nombre',
@@ -191,6 +198,7 @@ new #[Title('Causas')] class extends Component
                 'responsable:id,codigo,name',
                 'estadoProcesal:id,nombre',
                 'estadoCausa:id,nombre',
+                'direccion:id,nombre',
             ]);
 
         $this->applySearch($query);
@@ -250,7 +258,14 @@ new #[Title('Causas')] class extends Component
     #[Computed]
     public function estadosCausa(): Collection
     {
-        return EstadoCausa::query()->select(['id', 'nombre'])->orderBy('nombre')->get();
+            return EstadoCausa::query()->select(['id', 'nombre'])->orderBy('nombre')->get();
+    }
+
+    /** @return Collection<int, Direccion> */
+    #[Computed]
+    public function direcciones(): Collection
+    {
+        return Direccion::query()->select(['id', 'nombre'])->orderBy('nombre')->get();
     }
 
     /** @return Collection<int, Ciudad> */
@@ -298,6 +313,7 @@ new #[Title('Causas')] class extends Component
         $query->where(function (Builder $query) use ($search): void {
             $query->where('numero_causa', 'like', $search)
                 ->orWhere('nombre', 'like', $search)
+                ->orWhere('demandante_demandado', 'like', $search)
                 ->orWhereIn('responsable_id', User::query()
                     ->select('id')
                     ->where(function (Builder $query) use ($search): void {
@@ -309,7 +325,8 @@ new #[Title('Causas')] class extends Component
                     ->where(function (Builder $query) use ($search): void {
                         $query->where('nombre', 'like', $search)
                             ->orWhereIn('ciudad_id', Ciudad::query()->select('id')->where('nombre', 'like', $search));
-                    }));
+                    }))
+                ->orWhereIn('direccion_id', Direccion::query()->select('id')->where('nombre', 'like', $search));
         });
     }
 
@@ -321,6 +338,8 @@ new #[Title('Causas')] class extends Component
             ->when($this->responsableFilter !== '', fn (Builder $query) => $query->where('responsable_id', $this->responsableFilter))
             ->when($this->estadoProcesalFilter !== '', fn (Builder $query) => $query->where('estado_procesal_id', $this->estadoProcesalFilter))
             ->when($this->estadoCausaFilter !== '', fn (Builder $query) => $query->where('estado_causa_id', $this->estadoCausaFilter))
+            ->when($this->direccionFilter !== '', fn (Builder $query) => $query->where('direccion_id', $this->direccionFilter))
+            ->when($this->demandanteDemandadoFilter !== '', fn (Builder $query) => $query->where('demandante_demandado', 'like', '%'.trim($this->demandanteDemandadoFilter).'%'))
             ->when($this->juzgadoFilter !== '', fn (Builder $query) => $query->where('juzgado_id', $this->juzgadoFilter))
             ->when($this->ciudadFilter !== '', fn (Builder $query) => $query->whereIn(
                 'juzgado_id',
@@ -338,7 +357,7 @@ new #[Title('Causas')] class extends Component
     {
         return [
             'search', 'materiaFilter', 'submateriaFilter', 'responsableFilter',
-            'estadoProcesalFilter', 'estadoCausaFilter', 'ciudadFilter', 'juzgadoFilter',
+            'estadoProcesalFilter', 'estadoCausaFilter', 'direccionFilter', 'demandanteDemandadoFilter', 'ciudadFilter', 'juzgadoFilter',
             'accionFilter', 'fechaCausaDesde', 'fechaCausaHasta', 'fechaIngresoDesde',
             'fechaIngresoHasta',
         ];
@@ -371,7 +390,7 @@ new #[Title('Causas')] class extends Component
 
     <flux:card class="grid min-w-0 gap-5">
         <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
-            <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" label="Buscar causas" placeholder="Número, nombre, responsable, ciudad o juzgado" clearable />
+            <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" label="Buscar causas" placeholder="Número, nombre, parte, dirección, responsable, ciudad o juzgado" clearable />
             <flux:button icon="funnel" wire:click="$toggle('showFilters')">
                 Filtros
                 @if ($this->activeFiltersCount > 0)
@@ -388,6 +407,8 @@ new #[Title('Causas')] class extends Component
                 <flux:select wire:model.live="responsableFilter" label="Responsable"><option value="">Todos</option>@foreach ($this->responsables as $responsable)<option value="{{ $responsable->id }}">{{ $responsable->etiquetaResponsable() }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="estadoProcesalFilter" label="Estado procesal"><option value="">Todos</option>@foreach ($this->estadosProcesales as $estado)<option value="{{ $estado->id }}">{{ $estado->nombre }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="estadoCausaFilter" label="Estado de causa"><option value="">Todos</option>@foreach ($this->estadosCausa as $estado)<option value="{{ $estado->id }}">{{ $estado->nombre }}</option>@endforeach</flux:select>
+                <flux:select wire:model.live="direccionFilter" label="Dirección"><option value="">Todas</option>@foreach ($this->direcciones as $direccion)<option value="{{ $direccion->id }}">{{ $direccion->nombre }}</option>@endforeach</flux:select>
+                <flux:input wire:model.live.debounce.300ms="demandanteDemandadoFilter" label="Demandante / demandado" placeholder="Buscar parte" clearable />
                 <flux:select wire:model.live="accionFilter" label="Acción"><option value="">Todas</option>@foreach ($this->acciones as $accion)<option value="{{ $accion->id }}">{{ $accion->nombre }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="ciudadFilter" label="Ciudad"><option value="">Todas</option>@foreach ($this->ciudades as $ciudad)<option value="{{ $ciudad->id }}">{{ $ciudad->nombre }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="juzgadoFilter" label="Juzgado"><option value="">Todos</option>@foreach ($this->juzgados as $juzgado)<option value="{{ $juzgado->id }}">{{ $juzgado->nombre }}</option>@endforeach</flux:select>
@@ -406,7 +427,7 @@ new #[Title('Causas')] class extends Component
             <flux:button size="sm" variant="ghost" wire:click="sort('monto_demandado')">Monto</flux:button>
         </div>
 
-        <div id="causas-list" class="grid gap-3" wire:loading.class="opacity-60" wire:target="search,materiaFilter,submateriaFilter,responsableFilter,estadoProcesalFilter,estadoCausaFilter,ciudadFilter,juzgadoFilter,accionFilter,fechaCausaDesde,fechaCausaHasta,fechaIngresoDesde,fechaIngresoHasta,sort">
+        <div id="causas-list" class="grid gap-3" wire:loading.class="opacity-60" wire:target="search,materiaFilter,submateriaFilter,responsableFilter,estadoProcesalFilter,estadoCausaFilter,direccionFilter,demandanteDemandadoFilter,ciudadFilter,juzgadoFilter,accionFilter,fechaCausaDesde,fechaCausaHasta,fechaIngresoDesde,fechaIngresoHasta,sort">
             @forelse ($this->records as $causa)
                 <article wire:key="causa-card-{{ $causa->id }}" class="grid gap-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -424,6 +445,8 @@ new #[Title('Causas')] class extends Component
                     <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Ciudad / juzgado</dt><dd class="mt-1 break-words">{{ $causa->juzgado?->ciudad?->nombre ?? '—' }}<span class="block text-xs text-zinc-500">{{ $causa->juzgado?->nombre ?? 'Sin juzgado' }}</span></dd></div>
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Submateria</dt><dd class="mt-1 break-words">{{ $causa->submateria?->nombre ?? '—' }}</dd></div>
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Dirección</dt><dd class="mt-1 break-words">{{ $causa->direccion?->nombre ?? '—' }}</dd></div>
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Demandante / demandado</dt><dd class="mt-1 break-words">{{ $causa->demandante_demandado ?? '—' }}</dd></div>
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Responsable</dt><dd class="mt-1 break-words">{{ $causa->responsable?->etiquetaResponsable() ?? '—' }}</dd></div>
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Fechas y monto</dt><dd class="mt-1">{{ $causa->fecha_causa?->format('d-m-Y') ?? 'Sin fecha' }}<span class="block font-medium">{{ $causa->monto_demandado === null ? 'Sin monto' : '$ '.number_format((float) $causa->monto_demandado, 0, ',', '.') }}</span></dd></div>
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-zinc-500">Estado procesal</dt><dd class="mt-1"><flux:badge color="blue" size="sm">{{ $causa->estadoProcesal?->nombre ?? 'Sin estado' }}</flux:badge></dd></div>
@@ -457,7 +480,7 @@ new #[Title('Causas')] class extends Component
 
         <table class="causas-print-table">
             <thead>
-                <tr><th>N.º</th><th>Causa / materia</th><th>Ciudad / juzgado</th><th>Responsable</th><th>Estados</th><th>Fecha</th><th>Monto</th></tr>
+                <tr><th>N.º</th><th>Causa / materia</th><th>Ciudad / juzgado</th><th>Dirección</th><th>Responsable</th><th>Estados</th><th>Fecha</th><th>Monto</th></tr>
             </thead>
             <tbody>
                 @forelse ($this->printRecords as $causa)
@@ -465,13 +488,14 @@ new #[Title('Causas')] class extends Component
                         <td>{{ $causa->numero_causa ?? '—' }}</td>
                         <td><strong>{{ $causa->nombre ?? '—' }}</strong><span>{{ $causa->materia?->nombre ?? '—' }}{{ $causa->submateria ? ' · '.$causa->submateria->nombre : '' }}</span></td>
                         <td>{{ $causa->juzgado?->ciudad?->nombre ?? '—' }}<span>{{ $causa->juzgado?->nombre ?? '—' }}</span></td>
+                        <td>{{ $causa->direccion?->nombre ?? '—' }}</td>
                         <td>{{ $causa->responsable?->etiquetaResponsable() ?? '—' }}</td>
                         <td>{{ $causa->estadoProcesal?->nombre ?? '—' }}<span>{{ $causa->estadoCausa?->nombre ?? '—' }}</span></td>
                         <td>{{ $causa->fecha_causa?->format('d-m-Y') ?? '—' }}</td>
                         <td class="causas-print-amount">{{ $causa->monto_demandado === null ? '—' : '$'.number_format((float) $causa->monto_demandado, 0, ',', '.') }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="causas-print-empty">No se encontraron causas con los filtros seleccionados.</td></tr>
+                    <tr><td colspan="8" class="causas-print-empty">No se encontraron causas con los filtros seleccionados.</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -5,6 +5,7 @@ use App\Models\Accion;
 use App\Models\Actuacion;
 use App\Models\Causa;
 use App\Models\Ciudad;
+use App\Models\Direccion;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
@@ -20,6 +21,7 @@ test('un usuario autorizado visualiza el detalle imprimible completo de una caus
     $submateria = Submateria::factory()->for($materia)->create(['nombre' => 'COBRANZA MUNICIPAL']);
     $ciudad = Ciudad::factory()->create(['nombre' => 'TEMUCO']);
     $juzgado = Juzgado::factory()->for($ciudad)->create(['nombre' => 'Juzgado Civil de Temuco']);
+    $direccion = Direccion::factory()->create(['nombre' => 'JURÍDICA']);
     $estadoProcesal = EstadoProcesal::factory()->create(['nombre' => 'PRUEBA']);
     $estadoCausa = EstadoCausa::factory()->create(['nombre' => 'VIGENTE']);
     $accion = Accion::factory()->create(['nombre' => 'DEMANDA']);
@@ -29,6 +31,7 @@ test('un usuario autorizado visualiza el detalle imprimible completo de una caus
         'fecha_causa' => '2026-02-10',
         'fecha_ingreso' => '2026-02-11',
         'juzgado_id' => $juzgado,
+        'direccion_id' => $direccion,
         'materia_id' => $materia,
         'submateria_id' => $submateria,
         'estado_procesal_id' => $estadoProcesal,
@@ -61,6 +64,7 @@ test('un usuario autorizado visualiza el detalle imprimible completo de una caus
         ->assertSee('Cobro de derechos municipales')
         ->assertSee('C-88-2026')
         ->assertSee('Juzgado Civil de Temuco')
+        ->assertSee('JURÍDICA')
         ->assertSee('Abogada Responsable')
         ->assertSee('Verificar plazo de apelación.')
         ->assertSee('Se recibe prueba documental.')
@@ -86,7 +90,8 @@ test('un usuario sin permiso para ver causas no accede al detalle imprimible', f
 
 test('el listado imprime todas las causas que cumplen los filtros aplicados', function () {
     $administrador = User::factory()->administrador()->create();
-    Causa::factory()->create(['nombre' => 'Causa incluida', 'numero_causa' => 'C-99-2026']);
+    $direccion = Direccion::factory()->create(['nombre' => 'JURÍDICA']);
+    Causa::factory()->create(['nombre' => 'Causa incluida', 'numero_causa' => 'C-99-2026', 'direccion_id' => $direccion]);
     Causa::factory()->create(['nombre' => 'Causa excluida', 'numero_causa' => 'C-98-2026']);
 
     $this->actingAs($administrador)
@@ -95,6 +100,7 @@ test('el listado imprime todas las causas que cumplen los filtros aplicados', fu
         ->assertSee('Imprimir listado')
         ->assertSee('Listado de causas')
         ->assertSee('Causa incluida')
+        ->assertSee('JURÍDICA')
         ->assertDontSee('Causa excluida')
         ->assertSee('Total de causas: 1')
         ->assertSee('window.setTimeout')

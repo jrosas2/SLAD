@@ -108,11 +108,6 @@ enum Permiso: string
         };
     }
 
-    public function protegido(): bool
-    {
-        return in_array($this, [self::CausasAsignarResponsable, self::RecordatoriosAsignar], true);
-    }
-
     /** @return array<string, list<self>> */
     public static function agrupados(): array
     {

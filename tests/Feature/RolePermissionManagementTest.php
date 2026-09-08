@@ -173,19 +173,32 @@ test('14 administrador puede asignar responsable', function () {
     expect(Gate::forUser($administrador)->allows('assignResponsible', $causa))->toBeTrue();
 });
 
-test('15 el permiso de asignar responsable está protegido para roles nuevos', function () {
+test('15 administrador puede delegar y revocar permisos de asignación a otros roles', function () {
     $administrador = User::factory()->administrador()->create();
     $role = Role::create(['name' => 'SUPERVISOR', 'guard_name' => 'web']);
+    $usuario = User::factory()->create();
+    $usuario->syncRoles([$role]);
     $this->actingAs($administrador);
 
     Livewire::test('pages::admin.roles.index')
         ->call('openEditModal', $role->id)
-        ->set('selectedPermissions', [Permiso::CausasVer->value, Permiso::CausasAsignarResponsable->value])
+        ->set('selectedPermissions', [Permiso::CausasAsignarResponsable->value, Permiso::RecordatoriosAsignar->value])
         ->call('saveRole')
         ->assertHasNoErrors();
 
-    expect($role->refresh()->hasPermissionTo(Permiso::CausasVer->value))->toBeTrue()
-        ->and($role->hasPermissionTo(Permiso::CausasAsignarResponsable->value))->toBeFalse();
+    expect($role->refresh()->hasAllPermissions([Permiso::CausasAsignarResponsable->value, Permiso::RecordatoriosAsignar->value]))->toBeTrue()
+        ->and($usuario->can(Permiso::CausasAsignarResponsable->value))->toBeTrue()
+        ->and($usuario->can(Permiso::RecordatoriosAsignar->value))->toBeTrue();
+
+    Livewire::test('pages::admin.roles.index')
+        ->call('openEditModal', $role->id)
+        ->set('selectedPermissions', [])
+        ->call('saveRole')
+        ->assertHasNoErrors();
+
+    expect($role->refresh()->hasAnyPermission([Permiso::CausasAsignarResponsable->value, Permiso::RecordatoriosAsignar->value]))->toBeFalse()
+        ->and($usuario->can(Permiso::CausasAsignarResponsable->value))->toBeFalse()
+        ->and($usuario->can(Permiso::RecordatoriosAsignar->value))->toBeFalse();
 });
 
 test('16 permisos se actualizan inmediatamente después de modificar un rol', function () {

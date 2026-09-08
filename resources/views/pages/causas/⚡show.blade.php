@@ -33,6 +33,7 @@ new #[Title('Detalle de causa')] class extends Component
                 'accion:id,nombre',
                 'estadoProcesal:id,nombre',
                 'estadoCausa:id,nombre',
+                'direccion:id,nombre',
                 'responsable:id,codigo,name',
                 'actuaciones' => fn (HasMany $query) => $query
                     ->select(['id', 'causa_id', 'fecha', 'estado_procesal_id', 'descripcion', 'created_by'])
@@ -112,18 +113,20 @@ new #[Title('Detalle de causa')] class extends Component
 
         <flux:card class="grid gap-5">
             <flux:heading size="lg">Tribunal</flux:heading>
-            <dl class="grid gap-4 sm:grid-cols-2">
+            <dl class="grid gap-4 sm:grid-cols-3">
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Ciudad</dt><dd class="mt-1">{{ $this->causa->juzgado?->ciudad?->nombre ?? '—' }}</dd></div>
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Juzgado</dt><dd class="mt-1">{{ $this->causa->juzgado?->nombre ?? '—' }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Dirección</dt><dd class="mt-1">{{ $this->causa->direccion?->nombre ?? '—' }}</dd></div>
             </dl>
         </flux:card>
 
         <flux:card class="grid gap-5">
             <flux:heading size="lg">Clasificación</flux:heading>
-            <dl class="grid gap-4 sm:grid-cols-3">
+            <dl class="grid gap-4 sm:grid-cols-2">
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Materia</dt><dd class="mt-1">{{ $this->causa->materia->nombre }}</dd></div>
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Submateria</dt><dd class="mt-1">{{ $this->causa->submateria?->nombre ?? '—' }}</dd></div>
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Acción</dt><dd class="mt-1">{{ $this->causa->accion?->nombre ?? '—' }}</dd></div>
+                <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Demandante / demandado</dt><dd class="mt-1">{{ $this->causa->demandante_demandado ?? '—' }}</dd></div>
             </dl>
         </flux:card>
 
@@ -203,6 +206,8 @@ new #[Title('Detalle de causa')] class extends Component
                 <div class="print-detail"><dt>Ciudad</dt><dd>{{ $this->causa->juzgado?->ciudad?->nombre ?? '—' }}</dd></div>
                 <div class="print-detail"><dt>Juzgado</dt><dd>{{ $this->causa->juzgado?->nombre ?? '—' }}</dd></div>
                 <div class="print-detail"><dt>Acción</dt><dd>{{ $this->causa->accion?->nombre ?? '—' }}</dd></div>
+                <div class="print-detail"><dt>Dirección</dt><dd>{{ $this->causa->direccion?->nombre ?? '—' }}</dd></div>
+                <div class="print-detail wide"><dt>Demandante / demandado</dt><dd>{{ $this->causa->demandante_demandado ?? '—' }}</dd></div>
                 <div class="print-detail"><dt>Estado procesal</dt><dd>{{ $this->causa->estadoProcesal?->nombre ?? '—' }}</dd></div>
                 <div class="print-detail"><dt>Estado de causa</dt><dd>{{ $this->causa->estadoCausa?->nombre ?? '—' }}</dd></div>
                 <div class="print-detail"><dt>Responsable</dt><dd>{{ $this->causa->responsable?->etiquetaResponsable() ?? '—' }}</dd></div>

@@ -3,6 +3,7 @@
 use App\Models\Accion;
 use App\Models\Causa;
 use App\Models\Ciudad;
+use App\Models\Direccion;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
@@ -26,6 +27,7 @@ function catalogosCompletosParaCausa(): array
     $estadoProcesal = EstadoProcesal::factory()->create(['nombre' => 'DISCUSIÓN']);
     $estadoCausa = EstadoCausa::factory()->create(['nombre' => 'VIGENTE']);
     $accion = Accion::factory()->create(['nombre' => 'Demanda ejecutiva']);
+    $direccion = Direccion::factory()->create(['nombre' => 'JURIDICA']);
 
     return compact(
         'materia',
@@ -36,6 +38,7 @@ function catalogosCompletosParaCausa(): array
         'estadoProcesal',
         'estadoCausa',
         'accion',
+        'direccion',
     );
 }
 
@@ -44,6 +47,7 @@ test('el administrador puede listar y visualizar causas', function () {
     $causa = Causa::factory()->create([
         'nombre' => 'Expediente visible',
         'numero_causa' => 'C-100-2026',
+        'demandante_demandado' => 'EMPRESA EJEMPLO SPA',
     ]);
 
     $this->actingAs($administrador)
@@ -51,6 +55,7 @@ test('el administrador puede listar y visualizar causas', function () {
         ->assertOk()
         ->assertSee('C-100-2026')
         ->assertSee('Expediente visible')
+        ->assertSee('EMPRESA EJEMPLO SPA')
         ->assertSeeHtml('id="causas-list"')
         ->assertSee('Ver')
         ->assertSee('Editar')
@@ -59,6 +64,15 @@ test('el administrador puede listar y visualizar causas', function () {
     $this->get(route('causas.show', $causa))
         ->assertOk()
         ->assertSee('Resumen del expediente');
+});
+
+test('el formulario muestra dirección antes de materia en clasificación', function () {
+    $administrador = User::factory()->administrador()->create();
+
+    $this->actingAs($administrador)
+        ->get(route('causas.create'))
+        ->assertOk()
+        ->assertSeeInOrder(['Dirección', 'Materia']);
 });
 
 test('el administrador crea una causa con todas sus relaciones y monto numérico', function () {
@@ -78,6 +92,8 @@ test('el administrador crea una causa con todas sus relaciones y monto numérico
         ->set('accionId', (string) $catalogos['accion']->id)
         ->set('estadoProcesalId', (string) $catalogos['estadoProcesal']->id)
         ->set('estadoCausaId', (string) $catalogos['estadoCausa']->id)
+        ->set('direccionId', (string) $catalogos['direccion']->id)
+        ->set('demandanteDemandado', 'Proveedor Municipal SPA')
         ->set('responsableId', (string) $catalogos['responsable']->id)
         ->set('montoDemandado', '1250000')
         ->set('tieneCotizaciones', true)
@@ -94,17 +110,26 @@ test('el administrador crea una causa con todas sus relaciones y monto numérico
         ->and($causa->estadoProcesal->is($catalogos['estadoProcesal']))->toBeTrue()
         ->and($causa->estadoCausa->is($catalogos['estadoCausa']))->toBeTrue()
         ->and($causa->accion->is($catalogos['accion']))->toBeTrue()
+        ->and($causa->direccion->is($catalogos['direccion']))->toBeTrue()
+        ->and($causa->demandante_demandado)->toBe('Proveedor Municipal SPA')
         ->and($causa->monto_demandado)->toBe('1250000.00')
         ->and($causa->tiene_cotizaciones)->toBeTrue();
 });
 
-test('al editar una causa el monto demandado se carga como peso entero', function () {
+test('al editar una causa se cargan sus datos de clasificación y monto', function () {
     $administrador = User::factory()->administrador()->create();
-    $causa = Causa::factory()->create(['monto_demandado' => 39999999]);
+    $direccion = Direccion::factory()->create();
+    $causa = Causa::factory()->create([
+        'monto_demandado' => 39999999,
+        'direccion_id' => $direccion,
+        'demandante_demandado' => 'CONTRAPARTE DE PRUEBA',
+    ]);
 
     Livewire::actingAs($administrador)
         ->test('pages::causas.form', ['causa' => $causa])
-        ->assertSet('montoDemandado', '39999999');
+        ->assertSet('montoDemandado', '39999999')
+        ->assertSet('direccionId', (string) $direccion->id)
+        ->assertSet('demandanteDemandado', 'CONTRAPARTE DE PRUEBA');
 });
 
 test('el monto demandado no acepta decimales', function () {
@@ -120,6 +145,10 @@ test('el monto demandado no acepta decimales', function () {
 
 test('las causas no almacenan funcionario o usuario', function () {
     expect(Schema::hasColumn('causas', 'funcionario_usuario'))->toBeFalse();
+});
+
+test('las causas almacenan el demandante o demandado', function () {
+    expect(Schema::hasColumn('causas', 'demandante_demandado'))->toBeTrue();
 });
 
 test('el número de causa puede repetirse', function () {
@@ -263,6 +292,29 @@ test('el listado filtra por estado de causa', function () {
         ->set('estadoCausaFilter', (string) $estadoObjetivo->id)
         ->assertSee('Estado visible')
         ->assertDontSee('Estado oculto');
+});
+
+test('el listado filtra por dirección y demandante o demandado', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    $direccionObjetivo = Direccion::factory()->create(['nombre' => 'JURIDICA']);
+    $otraDireccion = Direccion::factory()->create(['nombre' => 'SALUD']);
+    Causa::factory()->create([
+        'nombre' => 'Causa dirección y parte visible',
+        'direccion_id' => $direccionObjetivo,
+        'demandante_demandado' => 'SOCIEDAD OBJETIVO SPA',
+    ]);
+    Causa::factory()->create([
+        'nombre' => 'Causa dirección y parte oculta',
+        'direccion_id' => $otraDireccion,
+        'demandante_demandado' => 'OTRA SOCIEDAD SPA',
+    ]);
+    $this->actingAs($administrador);
+
+    Livewire::test('pages::causas.index')
+        ->set('direccionFilter', (string) $direccionObjetivo->id)
+        ->set('demandanteDemandadoFilter', 'OBJETIVO')
+        ->assertSee('Causa dirección y parte visible')
+        ->assertDontSee('Causa dirección y parte oculta');
 });
 
 test('al cambiar materia o ciudad se limpian dependencias incompatibles', function () {

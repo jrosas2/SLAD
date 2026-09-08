@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\EstadoRecordatorio;
+use App\Enums\Permiso;
 use App\Models\Causa;
 use App\Models\Recordatorio;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\RecordatorioService;
 use Carbon\CarbonImmutable;
@@ -38,6 +40,32 @@ test('un abogado no puede abrir recordatorios de una causa ajena ni reasignarlos
         'titulo' => 'TAREA', 'descripcion' => null, 'fecha_hora' => CarbonImmutable::now()->addDay(),
         'recordar_minutos_antes' => 0, 'user_id' => $otroAbogado->id,
     ]))->toThrow(AuthorizationException::class);
+});
+
+test('un rol personalizado con permiso puede asignar recordatorios a otro usuario', function () {
+    $role = Role::create(['name' => 'COORDINADOR', 'guard_name' => 'web']);
+    $role->syncPermissions([
+        Permiso::CausasVer->value,
+        Permiso::CausasVerTodas->value,
+        Permiso::RecordatoriosCrear->value,
+        Permiso::RecordatoriosAsignar->value,
+    ]);
+    $asignador = User::factory()->create();
+    $destinatario = User::factory()->create();
+    $asignador->syncRoles([$role]);
+    $destinatario->syncRoles([$role]);
+    $causa = Causa::factory()->create();
+    $this->actingAs($asignador);
+
+    $recordatorio = app(RecordatorioService::class)->create($causa, $asignador, [
+        'titulo' => 'TAREA ASIGNADA',
+        'descripcion' => null,
+        'fecha_hora' => CarbonImmutable::now()->addDay(),
+        'recordar_minutos_antes' => 60,
+        'user_id' => $destinatario->id,
+    ]);
+
+    expect($recordatorio->user_id)->toBe($destinatario->id);
 });
 
 test('reprogramar un recordatorio futuro reinicia la marca de notificación y se audita', function () {

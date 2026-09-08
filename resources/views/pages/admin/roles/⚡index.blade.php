@@ -95,9 +95,7 @@ new #[Title('Roles y permisos')] class extends Component {
         Gate::authorize(Permiso::RolesAsignarPermisos->value);
 
         foreach ($this->permissionGroups()[$module] ?? [] as $permission) {
-            if (! $permission->protegido() || $this->isEditingAdministrator()) {
-                $this->selectedPermissions[] = $permission->value;
-            }
+            $this->selectedPermissions[] = $permission->value;
         }
 
         $this->selectedPermissions = array_values(array_unique($this->selectedPermissions));
@@ -108,7 +106,7 @@ new #[Title('Roles y permisos')] class extends Component {
         Gate::authorize(Permiso::RolesAsignarPermisos->value);
         $this->selectedPermissions = array_values(array_map(
             fn (Permiso $permission): string => $permission->value,
-            array_filter(Permiso::cases(), fn (Permiso $permission): bool => ! $permission->protegido() || $this->isEditingAdministrator()),
+            Permiso::cases(),
         ));
     }
 
@@ -149,7 +147,7 @@ new #[Title('Roles y permisos')] class extends Component {
         if (Gate::allows(Permiso::RolesAsignarPermisos->value)) {
             $permissions = $role->esAdministrador()
                 ? array_map(fn (Permiso $permission): string => $permission->value, Permiso::cases())
-                : array_values(array_filter($validated['selectedPermissions'], fn (string $permission): bool => ! Permiso::from($permission)->protegido()));
+                : $validated['selectedPermissions'];
             $role->syncPermissions($permissions);
             $currentPermissions = $role->permissions()->pluck('name')->sort()->values()->all();
 
@@ -286,7 +284,7 @@ new #[Title('Roles y permisos')] class extends Component {
                                 <div class="flex items-center justify-between gap-2"><flux:heading size="sm">{{ $module }}</flux:heading><flux:button type="button" size="xs" variant="ghost" wire:click="selectModule(@js($module))">Marcar módulo</flux:button></div>
                                 <div class="grid gap-3 sm:grid-cols-2">
                                     @foreach ($permissions as $permission)
-                                        <flux:checkbox wire:model="selectedPermissions" value="{{ $permission->value }}" :label="$permission->etiqueta()" :description="$permission->value" :disabled="$this->isEditingAdministrator() || ($permission->protegido() && ! $this->isEditingAdministrator())" />
+                                        <flux:checkbox wire:model="selectedPermissions" value="{{ $permission->value }}" :label="$permission->etiqueta()" :description="$permission->value" :disabled="$this->isEditingAdministrator()" />
                                     @endforeach
                                 </div>
                             </section>

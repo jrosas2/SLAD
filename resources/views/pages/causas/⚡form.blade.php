@@ -3,6 +3,7 @@
 use App\Models\Accion;
 use App\Models\Causa;
 use App\Models\Ciudad;
+use App\Models\Direccion;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
@@ -48,6 +49,10 @@ new #[Title('Formulario de causa')] class extends Component {
     public string $estadoProcesalId = '';
 
     public string $estadoCausaId = '';
+
+    public string $direccionId = '';
+
+    public string $demandanteDemandado = '';
 
     public string $responsableId = '';
 
@@ -101,6 +106,7 @@ new #[Title('Formulario de causa')] class extends Component {
 
         $this->nombre = Str::squish($this->nombre);
         $this->numeroCausa = Str::squish($this->numeroCausa);
+        $this->demandanteDemandado = Str::squish($this->demandanteDemandado);
         $this->observacionImportante = trim($this->observacionImportante);
 
         $rules = [
@@ -142,6 +148,8 @@ new #[Title('Formulario de causa')] class extends Component {
             'accionId' => ['nullable', 'integer', $this->activeCatalogRule(Accion::class, $this->currentCausa()?->accion_id)],
             'estadoProcesalId' => ['nullable', 'integer', $this->activeCatalogRule(EstadoProcesal::class, $this->currentCausa()?->estado_procesal_id)],
             'estadoCausaId' => ['nullable', 'integer', $this->activeCatalogRule(EstadoCausa::class, $this->currentCausa()?->estado_causa_id)],
+            'direccionId' => ['nullable', 'integer', $this->activeCatalogRule(Direccion::class, $this->currentCausa()?->direccion_id)],
+            'demandanteDemandado' => ['nullable', 'string', 'max:255'],
             'montoDemandado' => ['nullable', 'integer', 'min:0', 'max:9999999999999'],
             'tieneCotizaciones' => ['required', 'boolean'],
             'observacionImportante' => ['nullable', 'string', 'max:10000'],
@@ -166,6 +174,8 @@ new #[Title('Formulario de causa')] class extends Component {
             'accionId' => 'acción',
             'estadoProcesalId' => 'estado procesal',
             'estadoCausaId' => 'estado de causa',
+            'direccionId' => 'dirección',
+            'demandanteDemandado' => 'demandante o demandado',
             'responsableId' => 'responsable',
             'montoDemandado' => 'monto demandado',
             'tieneCotizaciones' => 'cotizaciones',
@@ -183,6 +193,8 @@ new #[Title('Formulario de causa')] class extends Component {
             'accion_id' => $this->nullableId($validated['accionId']),
             'estado_procesal_id' => $this->nullableId($validated['estadoProcesalId']),
             'estado_causa_id' => $this->nullableId($validated['estadoCausaId']),
+            'direccion_id' => $this->nullableId($validated['direccionId']),
+            'demandante_demandado' => $this->nullableString($validated['demandanteDemandado']),
             'monto_demandado' => $this->nullableString($validated['montoDemandado']),
             'tiene_cotizaciones' => $validated['tieneCotizaciones'],
             'observacion_importante' => $this->nullableString($validated['observacionImportante']),
@@ -286,6 +298,14 @@ new #[Title('Formulario de causa')] class extends Component {
             ->select(['id', 'nombre', 'activo'])->orderBy('nombre')->get();
     }
 
+    /** @return Collection<int, Direccion> */
+    #[Computed]
+    public function direcciones(): Collection
+    {
+        return $this->activeOptions(Direccion::query(), $this->currentCausa()?->direccion_id)
+            ->select(['id', 'nombre', 'activo'])->orderBy('nombre')->get();
+    }
+
     /** @return Collection<int, User> */
     #[Computed]
     public function responsables(): Collection
@@ -318,6 +338,8 @@ new #[Title('Formulario de causa')] class extends Component {
         $this->accionId = $causa->accion_id === null ? '' : (string) $causa->accion_id;
         $this->estadoProcesalId = $causa->estado_procesal_id === null ? '' : (string) $causa->estado_procesal_id;
         $this->estadoCausaId = $causa->estado_causa_id === null ? '' : (string) $causa->estado_causa_id;
+        $this->direccionId = $causa->direccion_id === null ? '' : (string) $causa->direccion_id;
+        $this->demandanteDemandado = $causa->demandante_demandado ?? '';
         $this->responsableId = $causa->responsable_id === null ? '' : (string) $causa->responsable_id;
         $this->montoDemandado = $causa->monto_demandado === null
             ? ''
@@ -415,7 +437,11 @@ new #[Title('Formulario de causa')] class extends Component {
         </flux:card>
 
         <flux:card class="grid gap-5">
-            <div><flux:heading size="lg">Clasificación</flux:heading><flux:text>Materia, submateria y acción jurídica.</flux:text></div>
+            <div><flux:heading size="lg">Clasificación</flux:heading><flux:text>Materia, submateria, acción jurídica y partes procesales.</flux:text></div>
+            <flux:select wire:model="direccionId" label="Dirección">
+                <option value="">Sin dirección</option>
+                @foreach ($this->direcciones as $direccion)<option value="{{ $direccion->id }}">{{ $direccion->nombre }}{{ $direccion->activo ? '' : ' (inactiva)' }}</option>@endforeach
+            </flux:select>
             <flux:select wire:model.live="materiaId" label="Materia" required>
                 <option value="">Selecciona una materia</option>
                 @foreach ($this->materias as $materia)<option value="{{ $materia->id }}">{{ $materia->nombre }}{{ $materia->activo ? '' : ' (inactiva)' }}</option>@endforeach
@@ -430,6 +456,7 @@ new #[Title('Formulario de causa')] class extends Component {
                     @foreach ($this->acciones as $accion)<option value="{{ $accion->id }}">{{ $accion->nombre }}{{ $accion->activo ? '' : ' (inactiva)' }}</option>@endforeach
                 </flux:select>
             </div>
+            <flux:input wire:model="demandanteDemandado" label="Demandante / demandado" maxlength="255" />
         </flux:card>
 
         <flux:card class="grid gap-5">
