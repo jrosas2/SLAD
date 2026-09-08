@@ -6,7 +6,7 @@
     </head>
     <body class="min-h-screen bg-[#f8f9ff] text-[#091426] antialiased dark:bg-[#08111f] dark:text-slate-100">
         <div class="flex min-h-screen flex-col">
-            <header class="border-b border-[#c5c6cd] bg-[#f8f9ff]/95 dark:border-slate-700 dark:bg-[#08111f]/95">
+            <header class="fixed inset-x-0 top-0 z-50 border-b border-[#c5c6cd] bg-[#f8f9ff]/95 dark:border-slate-700 dark:bg-[#08111f]/95">
                 <div class="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
                     <a href="{{ route('home') }}" class="text-xl font-bold tracking-tight" aria-label="SLAD, página de inicio">
                         SLAD
@@ -24,17 +24,17 @@
                 </div>
             </header>
 
-            <main class="flex-1">
+            <main class="flex-1 pt-16 pb-32 sm:pb-24">
                 <section class="border-b border-[#c5c6cd] dark:border-slate-700">
                     <div class="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-2 lg:px-10 lg:py-24">
                         <div class="max-w-xl">
                             <div class="mb-6 inline-flex items-center gap-2 rounded border border-[#a9b9cc] bg-[#e4efff] px-3 py-1.5 text-xs font-semibold tracking-wide text-[#42566f] dark:border-teal-900 dark:bg-teal-950/50 dark:text-teal-200">
                                 <flux:icon.code-bracket class="size-4 text-[#006a61] dark:text-teal-300" />
-                                Arquitectura Laravel · Acceso por roles
+                                Plataforma de Administración y Control
                             </div>
 
                             <h1 class="text-4xl font-bold leading-tight tracking-tight text-balance sm:text-5xl lg:text-[3.5rem]">
-                                Gestión Inteligente de Logística Legal
+                                Sistema de Gestión de Causas
                             </h1>
 
                             <p class="mt-5 max-w-lg text-base leading-7 text-[#505866] sm:text-lg dark:text-slate-300">
@@ -57,7 +57,7 @@
                     <div class="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
                         <h2 class="text-2xl font-bold tracking-tight sm:text-3xl">Infraestructura Funcional</h2>
 
-                        <div class="mt-9 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                        <div class="mt-3 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                             <article class="border border-[#c5c6cd] bg-[#f8f9ff] p-6 dark:border-slate-700 dark:bg-slate-900">
                                 <span class="flex size-10 items-center justify-center rounded-sm bg-[#d9e8ff] text-[#091426] dark:bg-teal-950 dark:text-teal-200">
                                     <flux:icon.shield-check variant="solid" class="size-5" />
@@ -102,10 +102,10 @@
                 </section>
             </main>
 
-            <footer class="bg-[#091426] text-slate-200">
+            <footer class="fixed inset-x-0 bottom-0 z-50 bg-[#1f2b3de7] text-slate-200">
                 <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
                     <p class="text-lg font-bold">SLAD</p>
-                    <p class="text-slate-400">© {{ now()->year }} SLAD · Sistema Logístico de Administración de Derecho.</p>
+                    <p class="text-slate-200">© {{ now()->year }} SLAD · Sistema Logístico de Administración de Derecho.</p>
                 </div>
             </footer>
         </div>

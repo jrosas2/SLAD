@@ -437,7 +437,6 @@ new #[Title('Administrar usuarios')] class extends Component {
             </div>
 
             <flux:input wire:model="name" label="Nombre completo" required autocomplete="name" />
-            <flux:input wire:model="codigo" label="Código histórico" maxlength="20" placeholder="Ej.: FV" />
             <flux:input wire:model="rut" label="R.U.T." required autocomplete="username" placeholder="12.345.678-5" />
             <flux:input wire:model="email" label="Correo electrónico" type="email" required autocomplete="email" />
             <flux:input wire:model="telefono" label="Teléfono" maxlength="30" autocomplete="tel" placeholder="+56 9 1234 5678" />

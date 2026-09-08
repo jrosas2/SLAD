@@ -14,7 +14,8 @@ test('solo el administrador puede abrir la administración de usuarios', functio
         ->get(route('admin.users.index'))
         ->assertOk()
         ->assertSee('Usuarios y roles')
-        ->assertSee('Nueva clave');
+        ->assertSee('Nueva clave')
+        ->assertDontSee('Código histórico');
 
     $this->actingAs($abogado)
         ->get(route('admin.users.index'))
@@ -28,7 +29,6 @@ test('el administrador crea un usuario con rol y contraseña temporal única', f
 
     $component = Livewire::test('pages::admin.users.index')
         ->set('name', 'Abogada Nueva')
-        ->set('codigo', 'an')
         ->set('rut', '12.345.678-5')
         ->set('email', 'ABOGADA@SLAD.LOCAL')
         ->set('telefono', '+56 9 1234 5678')
@@ -40,7 +40,7 @@ test('el administrador crea un usuario con rol y contraseña temporal única', f
 
     $usuario = User::query()->where('email', 'abogada@slad.local')->firstOrFail();
 
-    expect($usuario->codigo)->toBe('AN')
+    expect($usuario->codigo)->toBeNull()
         ->and($usuario->rut)->toBe('12345678-5')
         ->and($usuario->rutFormateado())->toBe('12.345.678-5')
         ->and($usuario->telefono)->toBe('+56 9 1234 5678')

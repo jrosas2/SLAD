@@ -66,13 +66,13 @@ test('el administrador puede listar y visualizar causas', function () {
         ->assertSee('Resumen del expediente');
 });
 
-test('el formulario muestra dirección antes de materia en clasificación', function () {
+test('el formulario muestra dirección bajo ciudad y juzgado', function () {
     $administrador = User::factory()->administrador()->create();
 
     $this->actingAs($administrador)
         ->get(route('causas.create'))
         ->assertOk()
-        ->assertSeeInOrder(['Dirección', 'Materia']);
+        ->assertSeeInOrder(['Ciudad', 'Juzgado', 'Dirección', 'Materia']);
 });
 
 test('el administrador crea una causa con todas sus relaciones y monto numérico', function () {

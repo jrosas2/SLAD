@@ -11,6 +11,8 @@ test('la portada pública presenta la identidad de SLAD', function () {
         ->assertSee('Infraestructura Funcional')
         ->assertSee('Seguridad y roles')
         ->assertSee('Ingresar')
+        ->assertSee('fixed inset-x-0 top-0 z-50', escape: false)
+        ->assertSee('fixed inset-x-0 bottom-0 z-50', escape: false)
         ->assertDontSee('Laravel has an incredibly rich ecosystem');
 });
 

@@ -433,15 +433,15 @@ new #[Title('Formulario de causa')] class extends Component {
                     <option value="">Sin juzgado</option>
                     @foreach ($this->juzgados as $juzgado)<option value="{{ $juzgado->id }}">{{ $juzgado->nombre }}{{ $juzgado->activo ? '' : ' (inactivo)' }}</option>@endforeach
                 </flux:select>
+                <flux:select wire:model="direccionId" label="Dirección">
+                    <option value="">Sin dirección</option>
+                    @foreach ($this->direcciones as $direccion)<option value="{{ $direccion->id }}">{{ $direccion->nombre }}{{ $direccion->activo ? '' : ' (inactiva)' }}</option>@endforeach
+                </flux:select>
             </div>
         </flux:card>
 
         <flux:card class="grid gap-5">
             <div><flux:heading size="lg">Clasificación</flux:heading><flux:text>Materia, submateria, acción jurídica y partes procesales.</flux:text></div>
-            <flux:select wire:model="direccionId" label="Dirección">
-                <option value="">Sin dirección</option>
-                @foreach ($this->direcciones as $direccion)<option value="{{ $direccion->id }}">{{ $direccion->nombre }}{{ $direccion->activo ? '' : ' (inactiva)' }}</option>@endforeach
-            </flux:select>
             <flux:select wire:model.live="materiaId" label="Materia" required>
                 <option value="">Selecciona una materia</option>
                 @foreach ($this->materias as $materia)<option value="{{ $materia->id }}">{{ $materia->nombre }}{{ $materia->activo ? '' : ' (inactiva)' }}</option>@endforeach
