@@ -15,6 +15,7 @@ test('solo el administrador puede abrir la administración de usuarios', functio
         ->assertOk()
         ->assertSee('Usuarios y roles')
         ->assertSee('Nueva clave')
+        ->assertSee('data-preserve-case', escape: false)
         ->assertDontSee('Código histórico');
 
     $this->actingAs($abogado)

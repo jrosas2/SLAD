@@ -19,6 +19,18 @@ test('usuario inicia sesión con RUT con puntos y contraseña correcta', functio
     $this->assertAuthenticatedAs($user);
 });
 
+test('usuario inicia sesión con contraseña que combina mayúsculas, minúsculas, números y caracteres especiales', function () {
+    $password = 'Clave!Mixta2026#';
+    $user = User::factory()->create(['rut' => '23456789-6', 'password' => $password]);
+
+    $this->post(route('login.store'), [
+        'rut' => '23.456.789-6',
+        'password' => $password,
+    ])->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertAuthenticatedAs($user);
+});
+
 test('usuario inicia sesión con RUT normalizado sin puntos', function () {
     $user = User::factory()->create(['rut' => '12345678-5']);
 

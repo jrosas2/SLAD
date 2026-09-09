@@ -30,7 +30,10 @@ function shouldUppercase(target) {
         return false;
     }
 
-    return ! (target instanceof HTMLInputElement && nonTextInputTypes.has(target.type));
+    return ! (target instanceof HTMLInputElement && (
+        nonTextInputTypes.has(target.type)
+        || ['current-password', 'new-password'].includes(target.autocomplete)
+    ));
 }
 
 function uppercaseInputValue(event) {

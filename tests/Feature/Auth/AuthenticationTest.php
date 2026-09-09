@@ -12,6 +12,7 @@ test('login screen can be rendered', function () {
         ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
         ->assertHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
     $response->assertSee('R.U.T.');
+    $response->assertSee('data-preserve-case', false);
     $response->assertDontSee('name="email"', false);
 });
 

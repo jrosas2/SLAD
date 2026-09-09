@@ -443,8 +443,8 @@ new #[Title('Administrar usuarios')] class extends Component {
 
             @if ($editingUserId === null)
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <flux:input wire:model="password" label="Contraseña inicial" type="password" required autocomplete="new-password" viewable />
-                    <flux:input wire:model="password_confirmation" label="Confirmar contraseña" type="password" required autocomplete="new-password" viewable />
+                    <flux:input wire:model="password" label="Contraseña inicial" type="password" required autocomplete="new-password" viewable data-preserve-case />
+                    <flux:input wire:model="password_confirmation" label="Confirmar contraseña" type="password" required autocomplete="new-password" viewable data-preserve-case />
                 </div>
                 <flux:callout variant="info" icon="key" text="El usuario deberá cambiar esta contraseña al iniciar sesión por primera vez." />
             @endif

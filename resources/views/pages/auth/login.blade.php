@@ -33,6 +33,7 @@
                     autocomplete="current-password"
                     placeholder="Contraseña"
                     viewable
+                    data-preserve-case
                 />
 
                 @if (Route::has('password.request'))
