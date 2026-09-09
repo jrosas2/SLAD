@@ -58,7 +58,7 @@ test('la migración conserva responsables legados como usuarios históricos inac
         ->and(Schema::hasTable('responsables'))->toBeFalse();
 });
 
-test('el formulario ofrece únicamente administradores y abogados activos', function () {
+test('el formulario ofrece todos los usuarios activos como responsables', function () {
     $administrador = User::factory()->administrador()->create([]);
     $abogado = User::factory()->abogado()->create([
         'codigo' => 'FV',
@@ -72,13 +72,14 @@ test('el formulario ofrece únicamente administradores y abogados activos', func
 
     Livewire::test('pages::causas.form')
         ->assertSee($abogado->etiquetaResponsable())
+        ->assertSee($consulta->etiquetaResponsable())
         ->assertDontSee($inactivo->name)
-        ->assertDontSee($consulta->name);
+        ->assertHasNoErrors();
 });
 
 test('el administrador puede asignar cambiar y quitar un responsable', function () {
     $administrador = User::factory()->administrador()->create([]);
-    $primero = User::factory()->abogado()->create([]);
+    $primero = User::factory()->consulta()->create([]);
     $segundo = User::factory()->abogado()->create([]);
     $causa = Causa::factory()->create();
 

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Concerns\Auditable;
-use App\Enums\RolUsuario;
 use App\Support\ChileanRut;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -129,8 +128,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     /** @param Builder<User> $query */
     public function scopeAsignableComoResponsable(Builder $query): void
     {
-        $query->where('activo', true)
-            ->role([RolUsuario::Administrador->value, RolUsuario::Abogado->value]);
+        $query->where('activo', true);
     }
 
     public function etiquetaResponsable(): string
