@@ -61,7 +61,7 @@
 
             <flux:spacer />
 
-            <flux:text class="px-3 text-xs text-slate-400!">Sistema Logístico de Administración de Derecho</flux:text>
+            <flux:text class="px-3 text-xs text-slate-400!">Sistema Logístico de Administración de Causas</flux:text>
 
             <div class="hidden px-3 pt-3 lg:block">
                 <livewire:sidebar.server-clock :key="'server-clock-desktop'" />
