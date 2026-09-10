@@ -25,7 +25,7 @@ class EnsureUserIsActive
                 'rut' => 'Las credenciales ingresadas no son válidas.',
             ]);
         }
-
+    
         return $next($request);
     }
 }
