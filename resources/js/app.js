@@ -60,3 +60,22 @@ function uppercaseInputValue(event) {
 
 document.addEventListener('input', uppercaseInputValue, true);
 document.addEventListener('compositionend', uppercaseInputValue, true);
+
+// Control de expiración de sesión por inactividad
+let inactivityTimer;
+const timeLimitMinutes = 15;
+const timeoutMS = timeLimitMinutes * 60 * 1000;
+
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+        alert('Tu sesión ha expirado por inactividad.');
+        window.location.href = '/login';
+    }, timeoutMS);
+}
+
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(eventType => {
+    window.addEventListener(eventType, resetInactivityTimer, { passive: true });
+});
+
+resetInactivityTimer();
