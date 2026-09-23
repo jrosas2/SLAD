@@ -105,7 +105,7 @@
             <footer class="fixed inset-x-0 bottom-0 z-50 bg-[#1f2b3de7] text-slate-200">
                 <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
                     <p class="text-lg font-bold">SLAD</p>
-                    <p class="text-slate-200">© {{ now()->year }} SLAD · Sistema Logístico de Administración de Derecho.</p>
+                    <p class="text-slate-200">© {{ now()->year }} SLAD · Sistema Logístico de Administración de causas jurídicas.</p>
                 </div>
             </footer>
         </div>
