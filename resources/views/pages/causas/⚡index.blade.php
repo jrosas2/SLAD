@@ -41,6 +41,9 @@ new #[Title('Causas')] class extends Component
     #[Url(except: '')]
     public string $estadoProcesalFilter = '';
 
+    #[Url(as: 'actuaciones', except: false)]
+    public bool $sinActuacionesFilter = false;
+
     #[Url(except: '')]
     public string $estadoCausaFilter = '';
 
@@ -91,6 +94,7 @@ new #[Title('Causas')] class extends Component
     {
         Gate::authorize('viewAny', Causa::class);
         $this->openPrintDialog = request()->boolean('imprimir');
+        $this->showFilters = $this->hasActiveFilters();
     }
 
     public function updated(string $property): void
@@ -298,7 +302,7 @@ new #[Title('Causas')] class extends Component
     {
         return collect($this->filterProperties())
             ->reject(fn (string $property): bool => $property === 'search')
-            ->filter(fn (string $property): bool => $this->{$property} !== '')
+            ->filter(fn (string $property): bool => $this->{$property} !== '' && $this->{$property} !== false)
             ->count();
     }
 
@@ -335,8 +339,11 @@ new #[Title('Causas')] class extends Component
         $query
             ->when($this->materiaFilter !== '', fn (Builder $query) => $query->where('materia_id', $this->materiaFilter))
             ->when($this->submateriaFilter !== '', fn (Builder $query) => $query->where('submateria_id', $this->submateriaFilter))
-            ->when($this->responsableFilter !== '', fn (Builder $query) => $query->where('responsable_id', $this->responsableFilter))
-            ->when($this->estadoProcesalFilter !== '', fn (Builder $query) => $query->where('estado_procesal_id', $this->estadoProcesalFilter))
+            ->when($this->responsableFilter === 'sin_responsable', fn (Builder $query) => $query->whereNull('responsable_id'))
+            ->when($this->responsableFilter !== '' && $this->responsableFilter !== 'sin_responsable', fn (Builder $query) => $query->where('responsable_id', $this->responsableFilter))
+            ->when($this->estadoProcesalFilter === 'sin_estado_procesal', fn (Builder $query) => $query->whereNull('estado_procesal_id'))
+            ->when($this->estadoProcesalFilter !== '' && $this->estadoProcesalFilter !== 'sin_estado_procesal', fn (Builder $query) => $query->where('estado_procesal_id', $this->estadoProcesalFilter))
+            ->when($this->sinActuacionesFilter, fn (Builder $query) => $query->doesntHave('actuaciones'))
             ->when($this->estadoCausaFilter !== '', fn (Builder $query) => $query->where('estado_causa_id', $this->estadoCausaFilter))
             ->when($this->direccionFilter !== '', fn (Builder $query) => $query->where('direccion_id', $this->direccionFilter))
             ->when($this->demandanteDemandadoFilter !== '', fn (Builder $query) => $query->where('demandante_demandado', 'like', '%'.trim($this->demandanteDemandadoFilter).'%'))
@@ -358,9 +365,15 @@ new #[Title('Causas')] class extends Component
         return [
             'search', 'materiaFilter', 'submateriaFilter', 'responsableFilter',
             'estadoProcesalFilter', 'estadoCausaFilter', 'direccionFilter', 'demandanteDemandadoFilter', 'ciudadFilter', 'juzgadoFilter',
-            'accionFilter', 'fechaCausaDesde', 'fechaCausaHasta', 'fechaIngresoDesde',
+            'sinActuacionesFilter', 'accionFilter', 'fechaCausaDesde', 'fechaCausaHasta', 'fechaIngresoDesde',
             'fechaIngresoHasta',
         ];
+    }
+
+    private function hasActiveFilters(): bool
+    {
+        return collect($this->filterProperties())
+            ->contains(fn (string $property): bool => $this->{$property} !== '' && $this->{$property} !== false);
     }
 }; ?>
 
@@ -404,8 +417,8 @@ new #[Title('Causas')] class extends Component
             <div class="grid gap-4 rounded-sm border border-[#c5c6cd] bg-[#f8f9ff] p-4 md:grid-cols-2 xl:grid-cols-4 dark:border-slate-700 dark:bg-slate-900">
                 <flux:select wire:model.live="materiaFilter" label="Materia"><option value="">Todas</option>@foreach ($this->materias as $materia)<option value="{{ $materia->id }}">{{ $materia->nombre }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="submateriaFilter" label="Submateria"><option value="">Todas</option>@foreach ($this->submaterias as $submateria)<option value="{{ $submateria->id }}">{{ $submateria->nombre }}</option>@endforeach</flux:select>
-                <flux:select wire:model.live="responsableFilter" label="Responsable"><option value="">Todos</option>@foreach ($this->responsables as $responsable)<option value="{{ $responsable->id }}">{{ $responsable->etiquetaResponsable() }}</option>@endforeach</flux:select>
-                <flux:select wire:model.live="estadoProcesalFilter" label="Estado procesal"><option value="">Todos</option>@foreach ($this->estadosProcesales as $estado)<option value="{{ $estado->id }}">{{ $estado->nombre }}</option>@endforeach</flux:select>
+                <flux:select wire:model.live="responsableFilter" label="Responsable"><option value="">Todos</option><option value="sin_responsable">Sin Responsable</option>@foreach ($this->responsables as $responsable)<option value="{{ $responsable->id }}">{{ $responsable->etiquetaResponsable() }}</option>@endforeach</flux:select>
+                <flux:select wire:model.live="estadoProcesalFilter" label="Estado procesal"><option value="">Todos</option><option value="sin_estado_procesal">Sin Estado Procesal</option>@foreach ($this->estadosProcesales as $estado)<option value="{{ $estado->id }}">{{ $estado->nombre }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="estadoCausaFilter" label="Estado de causa"><option value="">Todos</option>@foreach ($this->estadosCausa as $estado)<option value="{{ $estado->id }}">{{ $estado->nombre }}</option>@endforeach</flux:select>
                 <flux:select wire:model.live="direccionFilter" label="Dirección"><option value="">Todas</option>@foreach ($this->direcciones as $direccion)<option value="{{ $direccion->id }}">{{ $direccion->nombre }}</option>@endforeach</flux:select>
                 <flux:input wire:model.live.debounce.300ms="demandanteDemandadoFilter" label="Demandante / demandado" placeholder="Buscar parte" clearable />
@@ -416,6 +429,9 @@ new #[Title('Causas')] class extends Component
                 <flux:input wire:model.live="fechaCausaHasta" type="date" label="Fecha de causa hasta" />
                 <flux:input wire:model.live="fechaIngresoDesde" type="date" label="Fecha de ingreso desde" />
                 <flux:input wire:model.live="fechaIngresoHasta" type="date" label="Fecha de ingreso hasta" />
+                <div class="flex h-full items-center justify-start">
+                    <flux:checkbox wire:model.live="sinActuacionesFilter" label="Sin Actuaciones" />
+                </div>
             </div>
         @endif
 
@@ -427,7 +443,7 @@ new #[Title('Causas')] class extends Component
             <flux:button size="sm" variant="ghost" wire:click="sort('monto_demandado')">Monto</flux:button>
         </div>
 
-        <div id="causas-list" class="grid gap-3" wire:loading.class="opacity-60" wire:target="search,materiaFilter,submateriaFilter,responsableFilter,estadoProcesalFilter,estadoCausaFilter,direccionFilter,demandanteDemandadoFilter,ciudadFilter,juzgadoFilter,accionFilter,fechaCausaDesde,fechaCausaHasta,fechaIngresoDesde,fechaIngresoHasta,sort">
+        <div id="causas-list" class="grid gap-3" wire:loading.class="opacity-60" wire:target="search,materiaFilter,submateriaFilter,responsableFilter,estadoProcesalFilter,sinActuacionesFilter,estadoCausaFilter,direccionFilter,demandanteDemandadoFilter,ciudadFilter,juzgadoFilter,accionFilter,fechaCausaDesde,fechaCausaHasta,fechaIngresoDesde,fechaIngresoHasta,sort">
             @forelse ($this->records as $causa)
                 <article wire:key="causa-card-{{ $causa->id }}" class="grid gap-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

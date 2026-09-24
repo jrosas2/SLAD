@@ -50,9 +50,6 @@ new #[Title('Panel principal')] class extends Component
     {
         Gate::authorize(Permiso::DashboardVer->value);
 
-        if ($this->year === '' && ! request()->has('anio')) {
-            $this->year = (string) now()->year;
-        }
     }
 
     public function updatedCiudadFilter(): void
@@ -418,9 +415,9 @@ new #[Title('Panel principal')] class extends Component
     <flux:card class="grid gap-5" wire:loading.class="opacity-60">
         <div><flux:heading size="lg">Causas que requieren atención</flux:heading><flux:text>Control informativo de expedientes sin actuaciones registradas; no aplica un plazo jurídico automático.</flux:text></div>
         <div class="grid gap-4 sm:grid-cols-3">
-            <div class="rounded-sm border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30"><span class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Sin actuaciones</span><p class="mt-1 text-2xl font-semibold">{{ $summary['sinActuaciones'] }}</p></div>
-            <div class="rounded-sm border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30"><span class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Sin responsable</span><p class="mt-1 text-2xl font-semibold">{{ $summary['sinResponsable'] }}</p></div>
-            <div class="rounded-sm border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30"><span class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Sin estado procesal</span><p class="mt-1 text-2xl font-semibold">{{ $summary['sinEstadoProcesal'] }}</p></div>
+            <a href="{{ route('causas.index', ['actuaciones' => 1]) }}" wire:navigate class="rounded-sm border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-400 dark:border-amber-900 dark:bg-amber-950/30 dark:hover:border-amber-600"><span class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Sin actuaciones</span><p class="mt-1 text-2xl font-semibold">{{ $summary['sinActuaciones'] }}</p></a>
+            <a href="{{ route('causas.index', ['responsableFilter' => 'sin_responsable']) }}" wire:navigate class="rounded-sm border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-400 dark:border-amber-900 dark:bg-amber-950/30 dark:hover:border-amber-600"><span class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Sin responsable</span><p class="mt-1 text-2xl font-semibold">{{ $summary['sinResponsable'] }}</p></a>
+            <a href="{{ route('causas.index', ['estadoProcesalFilter' => 'sin_estado_procesal']) }}" wire:navigate class="rounded-sm border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-400 dark:border-amber-900 dark:bg-amber-950/30 dark:hover:border-amber-600"><span class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Sin estado procesal</span><p class="mt-1 text-2xl font-semibold">{{ $summary['sinEstadoProcesal'] }}</p></a>
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
             @forelse ($data['causasSinActuaciones'] as $causa)

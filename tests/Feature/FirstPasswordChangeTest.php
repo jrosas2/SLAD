@@ -19,6 +19,14 @@ test('un usuario con contraseña temporal debe cambiarla antes de acceder al sis
         ->assertSee('Crea tu contraseña personal');
 });
 
+test('un usuario con contraseña temporal es redirigido antes de abrir las causas', function () {
+    $usuario = User::factory()->withTemporaryPassword()->create();
+
+    $this->actingAs($usuario)
+        ->get(route('causas.index'))
+        ->assertRedirect(route('password.first-change'));
+});
+
 test('el usuario reemplaza la contraseña temporal y puede continuar', function () {
     $usuario = User::factory()->withTemporaryPassword()->create([
         'password' => 'Temporal-2026!',

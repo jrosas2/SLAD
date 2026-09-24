@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Accion;
+use App\Models\Actuacion;
 use App\Models\Causa;
 use App\Models\Ciudad;
 use App\Models\Direccion;
@@ -278,6 +279,86 @@ test('el listado filtra por responsable', function () {
         ->set('responsableFilter', (string) $responsableObjetivo->id)
         ->assertSee('Responsable visible')
         ->assertDontSee('Responsable oculto');
+});
+
+test('el listado filtra causas sin responsable y conserva el filtro desde la URL', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    $responsable = User::factory()->abogado()->create([]);
+    Causa::factory()->create(['nombre' => 'Causa sin responsable', 'responsable_id' => null]);
+    Causa::factory()->create(['nombre' => 'Causa con responsable', 'responsable_id' => $responsable]);
+    $this->actingAs($administrador);
+
+    Livewire::withQueryParams(['responsableFilter' => 'sin_responsable'])
+        ->test('pages::causas.index')
+        ->assertSet('responsableFilter', 'sin_responsable')
+        ->assertSet('showFilters', true)
+        ->assertSee('Sin Responsable')
+        ->assertSee('Causa sin responsable')
+        ->assertDontSee('Causa con responsable');
+});
+
+test('el listado filtra causas sin estado procesal', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    $estadoProcesal = EstadoProcesal::factory()->create();
+    Causa::factory()->create(['nombre' => 'Causa sin estado procesal', 'estado_procesal_id' => null]);
+    Causa::factory()->create(['nombre' => 'Causa con estado procesal', 'estado_procesal_id' => $estadoProcesal]);
+    $this->actingAs($administrador);
+
+    Livewire::withQueryParams(['estadoProcesalFilter' => 'sin_estado_procesal'])
+        ->test('pages::causas.index')
+        ->assertSet('estadoProcesalFilter', 'sin_estado_procesal')
+        ->assertSet('showFilters', true)
+        ->assertSee('Sin Estado Procesal')
+        ->assertSee('Causa sin estado procesal')
+        ->assertDontSee('Causa con estado procesal');
+});
+
+test('el listado filtra causas sin actuaciones sin cargarlas en memoria', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    $sinActuaciones = Causa::factory()->create(['nombre' => 'Causa sin actuaciones']);
+    $conActuaciones = Causa::factory()->create(['nombre' => 'Causa con actuaciones']);
+    Actuacion::factory()->for($conActuaciones)->create();
+    $this->actingAs($administrador);
+
+    Livewire::withQueryParams(['actuaciones' => 1])
+        ->test('pages::causas.index')
+        ->assertSet('sinActuacionesFilter', true)
+        ->assertSet('showFilters', true)
+        ->assertSee('Sin Actuaciones')
+        ->assertSee($sinActuaciones->nombre)
+        ->assertDontSee($conActuaciones->nombre)
+        ->call('clearFilters')
+        ->assertSet('sinActuacionesFilter', false)
+        ->assertSee($conActuaciones->nombre);
+});
+
+test('los filtros de atención se combinan y se restablecen junto al resto de filtros', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    $responsable = User::factory()->abogado()->create([]);
+    $causaObjetivo = Causa::factory()->create([
+        'nombre' => 'Causa sin actuaciones del responsable',
+        'responsable_id' => $responsable,
+    ]);
+    $causaSinResponsable = Causa::factory()->create(['nombre' => 'Causa sin responsable']);
+    $causaConActuacion = Causa::factory()->create([
+        'nombre' => 'Causa con actuación del responsable',
+        'responsable_id' => $responsable,
+    ]);
+    Actuacion::factory()->for($causaConActuacion)->create();
+    $this->actingAs($administrador);
+
+    Livewire::test('pages::causas.index')
+        ->set('sinActuacionesFilter', true)
+        ->set('responsableFilter', (string) $responsable->id)
+        ->assertSee($causaObjetivo->nombre)
+        ->assertDontSee($causaSinResponsable->nombre)
+        ->assertDontSee($causaConActuacion->nombre)
+        ->set('estadoProcesalFilter', 'sin_estado_procesal')
+        ->call('clearFilters')
+        ->assertSet('sinActuacionesFilter', false)
+        ->assertSet('responsableFilter', '')
+        ->assertSet('estadoProcesalFilter', '')
+        ->assertSee($causaConActuacion->nombre);
 });
 
 test('el listado filtra por estado de causa', function () {

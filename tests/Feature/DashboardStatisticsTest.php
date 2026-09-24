@@ -39,6 +39,33 @@ test('el administrador puede visualizar el dashboard estadístico', function () 
         ->assertSeeHtml('data-testid="circular-chart-estados-procesales"');
 });
 
+test('los indicadores de causas que requieren atención enlazan al listado con el filtro visible', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    $this->actingAs($administrador);
+
+    Livewire::test('pages::dashboard')
+        ->assertSeeHtml('href="'.route('causas.index', ['actuaciones' => 1]).'"')
+        ->assertSeeHtml('href="'.route('causas.index', ['responsableFilter' => 'sin_responsable']).'"')
+        ->assertSeeHtml('href="'.route('causas.index', ['estadoProcesalFilter' => 'sin_estado_procesal']).'"');
+});
+
+test('el dashboard carga todos los años por defecto', function () {
+    $administrador = User::factory()->administrador()->create([]);
+    Causa::factory()->create(['fecha_ingreso' => '2025-03-01', 'responsable_id' => null]);
+    Causa::factory()->create(['fecha_ingreso' => '2026-03-01', 'estado_procesal_id' => null]);
+    $this->actingAs($administrador);
+
+    $component = Livewire::test('pages::dashboard')
+        ->assertSet('year', '');
+
+    expect($component->get('dashboardData')['resumen'])
+        ->toMatchArray([
+            'totalCausas' => 2,
+            'sinResponsable' => 2,
+            'sinEstadoProcesal' => 2,
+        ]);
+});
+
 test('el abogado autorizado puede visualizar estadísticas institucionales', function () {
     $abogado = User::factory()->abogado()->create([]);
     Causa::factory()->create(['fecha_ingreso' => now()->startOfYear()]);
