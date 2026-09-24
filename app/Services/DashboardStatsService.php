@@ -23,6 +23,7 @@ class DashboardStatsService
         return Recordatorio::query()
             ->select(['id', 'causa_id', 'titulo', 'fecha_hora', 'estado'])
             ->with('causa:id,numero_causa,nombre')
+            ->whereHas('causa')
             ->where('user_id', $user->id)
             ->where('estado', EstadoRecordatorio::Pendiente)
             ->where('fecha_hora', '>=', now())

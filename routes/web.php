@@ -8,9 +8,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
 
-Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
-    Route::livewire('password/cambiar-inicial', 'pages::auth.first-change-password')
-        ->name('password.first-change');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
 Route::middleware(['auth', EnsureUserIsActive::class, EnsurePasswordChanged::class, 'verified'])->group(function () {

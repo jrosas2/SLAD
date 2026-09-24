@@ -189,3 +189,20 @@ test('el dashboard personal muestra sólo los próximos recordatorios del usuari
 
     Livewire::actingAs($abogado)->test('pages::dashboard')->assertSee('MI PLAZO')->assertDontSee('PLAZO AJENO');
 });
+
+test('el dashboard omite recordatorios cuyas causas fueron eliminadas', function () {
+    $abogado = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $abogado->id]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $abogado->id,
+        'created_by' => $abogado->id,
+        'titulo' => 'PLAZO DE CAUSA ELIMINADA',
+        'fecha_hora' => now()->addDay(),
+    ]);
+    $causa->delete();
+
+    Livewire::actingAs($abogado)
+        ->test('pages::dashboard')
+        ->assertDontSee('PLAZO DE CAUSA ELIMINADA');
+});

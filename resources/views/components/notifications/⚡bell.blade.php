@@ -37,6 +37,7 @@ new class extends Component {
         return Recordatorio::query()
             ->select(['id', 'causa_id', 'titulo', 'fecha_hora', 'notificar_en'])
             ->with('causa:id,numero_causa,nombre')
+            ->whereHas('causa')
             ->where('user_id', auth()->id())
             ->where('estado', EstadoRecordatorio::Pendiente)
             ->whereNull('notificado_at')

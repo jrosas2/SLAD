@@ -38,3 +38,21 @@ test('la campana incorpora avisos inmediatos para recordatorios pendientes', fun
         ->assertSeeHtml('actualizarAvisos')
         ->assertSeeHtml('window.setInterval');
 });
+
+test('la campana omite recordatorios cuyas causas fueron eliminadas', function () {
+    $usuario = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $usuario->id]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $usuario->id,
+        'created_by' => $usuario->id,
+        'titulo' => 'RECORDATORIO HUÉRFANO',
+        'fecha_hora' => now()->addHour(),
+        'notificar_en' => now()->subMinute(),
+    ]);
+    $causa->delete();
+
+    Livewire::actingAs($usuario)
+        ->test('notifications.bell')
+        ->assertDontSee('RECORDATORIO HUÉRFANO');
+});
