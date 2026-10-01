@@ -33,7 +33,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return array<string, mixed>
      */
     public function dashboard(array $filters, ?User $viewer = null): array
@@ -43,6 +43,7 @@ class DashboardStatsService
             'causasPorMateria' => $this->causasPorMateria($filters, $viewer),
             'causasPorEstado' => $this->causasPorEstado($filters, $viewer),
             'causasPorEstadoProcesal' => $this->causasPorEstadoProcesal($filters, $viewer),
+            'causasPorDireccion' => $this->causasPorDireccion($filters, $viewer),
             'causasPorResponsable' => $this->causasPorResponsable($filters, $viewer),
             'causasPorMes' => $this->causasPorMes($filters, $viewer),
             'variacionCausasAnual' => $this->variacionCausasAnual($filters, $viewer),
@@ -53,7 +54,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return array{totalCausas: int, causasVigentes: int, causasCerradas: int, montoDemandado: int, totalIngresos: int, totalEgresos: int, saldo: int, sinResponsable: int, sinEstadoProcesal: int, sinActuaciones: int}
      */
     public function resumen(array $filters, ?User $viewer = null): array
@@ -92,7 +93,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return list<array{id: int<0, max>, nombre: string, cantidad: int}>
      */
     public function causasPorMateria(array $filters, ?User $viewer = null): array
@@ -112,7 +113,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return list<array{id: int<0, max>|null, nombre: string, cantidad: int}>
      */
     public function causasPorEstado(array $filters, ?User $viewer = null): array
@@ -132,7 +133,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return list<array{id: int<0, max>|null, nombre: string, cantidad: int}>
      */
     public function causasPorEstadoProcesal(array $filters, ?User $viewer = null): array
@@ -152,7 +153,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return list<array{id: int<0, max>|null, nombre: string, cantidad: int}>
      */
     public function causasPorResponsable(array $filters, ?User $viewer = null): array
@@ -179,7 +180,27 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @return list<array{id: int<0, max>|null, nombre: string, cantidad: int}>
+     */
+    public function causasPorDireccion(array $filters, ?User $viewer = null): array
+    {
+        return array_values($this->causasQuery($filters, true, $viewer)
+            ->select('direccion_id')
+            ->selectRaw('COUNT(*) AS cantidad')
+            ->with('direccion:id,nombre')
+            ->groupBy('direccion_id')
+            ->orderByDesc('cantidad')
+            ->get()
+            ->map(fn (Causa $causa): array => [
+                'id' => $causa->direccion_id,
+                'nombre' => $causa->direccion_id === null ? 'SIN DIRECCIÓN' : $causa->direccion->nombre,
+                'cantidad' => (int) $causa->getAttribute('cantidad'),
+            ])->all());
+    }
+
+    /**
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return list<array{mes: int, nombre: string, cantidad: int}>
      */
     public function causasPorMes(array $filters, ?User $viewer = null): array
@@ -204,7 +225,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return array{anioActual: int|null, anioAnterior: int|null, totalActual: int, totalAnterior: int, porcentaje: float|null}
      */
     public function variacionCausasAnual(array $filters, ?User $viewer = null): array
@@ -252,7 +273,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return list<array{mes: int, nombre: string, ingresos: int, egresos: int}>
      */
     public function finanzasPorMes(array $filters, ?User $viewer = null): array
@@ -286,7 +307,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return Collection<int, Actuacion>
      */
     public function actividadReciente(array $filters, ?User $viewer = null): Collection
@@ -307,7 +328,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return Collection<int, Causa>
      */
     public function causasSinActuaciones(array $filters, ?User $viewer = null): Collection
@@ -336,7 +357,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return array{totalIngresos: int, totalEgresos: int, saldo: int}
      */
     private function resumenFinanciero(array $filters, ?User $viewer): array
@@ -360,7 +381,7 @@ class DashboardStatsService
      * El filtro anual de causas usa exclusivamente fecha_ingreso. Las causas sin esa fecha
      * quedan fuera al seleccionar un año; no se mezcla silenciosamente con fecha_causa.
      *
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return Builder<Causa>
      */
     private function causasQuery(array $filters, bool $applyYear = true, ?User $viewer = null): Builder
@@ -369,6 +390,7 @@ class DashboardStatsService
             ->when($viewer !== null, fn (Builder $query) => $query->visibleFor($viewer))
             ->when($applyYear && $filters['year'] !== null, fn (Builder $query) => $query->whereYear('fecha_ingreso', $filters['year']))
             ->when($filters['materiaId'] !== null, fn (Builder $query) => $query->where('materia_id', $filters['materiaId']))
+            ->when($filters['direccionId'] !== null, fn (Builder $query) => $query->where('direccion_id', $filters['direccionId']))
             ->when($filters['responsableId'] !== null, fn (Builder $query) => $query->where('responsable_id', $filters['responsableId']))
             ->when($filters['estadoCausaId'] !== null, fn (Builder $query) => $query->where('estado_causa_id', $filters['estadoCausaId']))
             ->when($filters['estadoProcesalId'] !== null, fn (Builder $query) => $query->where('estado_procesal_id', $filters['estadoProcesalId']))
@@ -380,7 +402,7 @@ class DashboardStatsService
     }
 
     /**
-     * @param  array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
+     * @param  array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}  $filters
      * @return Builder<MovimientoFinanciero>
      */
     private function movimientosQuery(array $filters, ?User $viewer): Builder
@@ -420,7 +442,7 @@ class DashboardStatsService
     private function actuacionYears(?User $viewer): SupportCollection
     {
         $query = Actuacion::query()
-            ->whereIn('causa_id', $this->causasQuery(['year' => null, 'materiaId' => null, 'responsableId' => null, 'estadoCausaId' => null, 'estadoProcesalId' => null, 'ciudadId' => null, 'juzgadoId' => null], false, $viewer)->select('id'))
+            ->whereIn('causa_id', $this->causasQuery(['year' => null, 'materiaId' => null, 'direccionId' => null, 'responsableId' => null, 'estadoCausaId' => null, 'estadoProcesalId' => null, 'ciudadId' => null, 'juzgadoId' => null], false, $viewer)->select('id'))
             ->whereNotNull('fecha');
 
         if ((new Actuacion)->getConnection()->getDriverName() === 'sqlite') {
@@ -437,7 +459,7 @@ class DashboardStatsService
     private function movimientoYears(?User $viewer): SupportCollection
     {
         $query = MovimientoFinanciero::query()
-            ->whereIn('causa_id', $this->causasQuery(['year' => null, 'materiaId' => null, 'responsableId' => null, 'estadoCausaId' => null, 'estadoProcesalId' => null, 'ciudadId' => null, 'juzgadoId' => null], false, $viewer)->select('id'))
+            ->whereIn('causa_id', $this->causasQuery(['year' => null, 'materiaId' => null, 'direccionId' => null, 'responsableId' => null, 'estadoCausaId' => null, 'estadoProcesalId' => null, 'ciudadId' => null, 'juzgadoId' => null], false, $viewer)->select('id'))
             ->whereNotNull('fecha');
 
         if ((new MovimientoFinanciero)->getConnection()->getDriverName() === 'sqlite') {

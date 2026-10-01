@@ -15,6 +15,7 @@ function accessFilters(): array
     return [
         'year' => null,
         'materiaId' => null,
+        'direccionId' => null,
         'responsableId' => null,
         'estadoCausaId' => null,
         'estadoProcesalId' => null,

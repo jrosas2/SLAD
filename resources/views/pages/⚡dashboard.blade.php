@@ -2,6 +2,7 @@
 
 use App\Enums\Permiso;
 use App\Models\Ciudad;
+use App\Models\Direccion;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
@@ -23,6 +24,9 @@ new #[Title('Panel principal')] class extends Component
 
     #[Url(except: '')]
     public string $materiaFilter = '';
+
+    #[Url(except: '')]
+    public string $direccionFilter = '';
 
     #[Url(except: '')]
     public string $responsableFilter = '';
@@ -68,6 +72,7 @@ new #[Title('Panel principal')] class extends Component
     {
         $this->year = '';
         $this->materiaFilter = '';
+        $this->direccionFilter = '';
         $this->responsableFilter = '';
         $this->estadoCausaFilter = '';
         $this->estadoProcesalFilter = '';
@@ -102,6 +107,13 @@ new #[Title('Panel principal')] class extends Component
     public function materias(): Collection
     {
         return Materia::query()->select(['id', 'nombre'])->orderBy('nombre')->get();
+    }
+
+    /** @return Collection<int, Direccion> */
+    #[Computed]
+    public function direcciones(): Collection
+    {
+        return Direccion::query()->select(['id', 'nombre'])->orderBy('nombre')->get();
     }
 
     /** @return Collection<int, User> */
@@ -153,6 +165,7 @@ new #[Title('Panel principal')] class extends Component
         return collect([
             $this->year,
             $this->materiaFilter,
+            $this->direccionFilter,
             $this->responsableFilter,
             $this->estadoCausaFilter,
             $this->estadoProcesalFilter,
@@ -167,13 +180,14 @@ new #[Title('Panel principal')] class extends Component
     }
 
     /**
-     * @return array{year: int|null, materiaId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}
+     * @return array{year: int|null, materiaId: int|null, direccionId: int|null, responsableId: int|null, estadoCausaId: int|null, estadoProcesalId: int|null, ciudadId: int|null, juzgadoId: int|null}
      */
     private function filters(): array
     {
         return [
             'year' => $this->yearId(),
             'materiaId' => $this->filterId($this->materiaFilter),
+            'direccionId' => $this->filterId($this->direccionFilter),
             'responsableId' => $this->filterId($this->responsableFilter),
             'estadoCausaId' => $this->filterId($this->estadoCausaFilter),
             'estadoProcesalId' => $this->filterId($this->estadoProcesalFilter),
@@ -198,7 +212,6 @@ new #[Title('Panel principal')] class extends Component
 @php
     $data = $this->dashboardData;
     $summary = $data['resumen'];
-    $maxMateria = max(1, (int) collect($data['causasPorMateria'])->max('cantidad'));
     $maxResponsable = max(1, (int) collect($data['causasPorResponsable'])->max('cantidad'));
     $maxCausasMes = max(1, (int) collect($data['causasPorMes'])->max('cantidad'));
     $annualVariation = $data['variacionCausasAnual'];
@@ -227,13 +240,14 @@ new #[Title('Panel principal')] class extends Component
             <flux:heading size="xl" level="1">Panel administrativo y jurídico</flux:heading>
             <flux:text>Indicadores operacionales calculados directamente desde los registros de SLAD.</flux:text>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="dashboard-profile flex items-center gap-2">
             <flux:text class="text-sm">Perfil:</flux:text>
             <flux:badge color="zinc">{{ auth()->user()->getRoleNames()->first() ?? 'SIN PERFIL' }}</flux:badge>
+            <flux:button type="button" variant="primary" color="blue" x-on:click="window.print()" wire:ignore class="dashboard-print-control">Imprimir</flux:button>
         </div>
     </div>
 
-    <flux:card class="grid gap-4">
+    <flux:card class="dashboard-filters grid gap-4">
         <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
                 <flux:heading size="lg">Filtros globales</flux:heading>
@@ -255,6 +269,10 @@ new #[Title('Panel principal')] class extends Component
             <flux:select wire:model.live="materiaFilter" label="Materia">
                 <option value="">Todas</option>
                 @foreach ($this->materias as $materia)<option value="{{ $materia->id }}">{{ $materia->nombre }}</option>@endforeach
+            </flux:select>
+            <flux:select wire:model.live="direccionFilter" label="Dirección">
+                <option value="">Todas</option>
+                @foreach ($this->direcciones as $direccion)<option value="{{ $direccion->id }}">{{ $direccion->nombre }}</option>@endforeach
             </flux:select>
             <flux:select wire:model.live="responsableFilter" label="Responsable">
                 <option value="">Todos</option>
@@ -307,29 +325,27 @@ new #[Title('Panel principal')] class extends Component
         <div class="rounded-sm border border-[#006a61]/30 bg-[#006a61]/5 p-5 dark:border-teal-700 dark:bg-teal-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-[#006a61] dark:text-teal-300">Saldo financiero</p><p class="mt-2 text-2xl font-semibold {{ $summary['saldo'] < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[#091426] dark:text-slate-100' }}">{{ $this->formatClp($summary['saldo']) }}</p></div>
     </div>
 
-    <flux:card class="grid gap-5" wire:loading.class="opacity-60">
-        <div><flux:heading size="lg">Causas por materia</flux:heading><flux:text>Distribución de expedientes del período seleccionado.</flux:text></div>
-        <div class="grid gap-4">
-            @forelse ($data['causasPorMateria'] as $item)
-                <a wire:key="materia-chart-{{ $item['id'] }}" href="{{ route('causas.index', ['materiaFilter' => $item['id']]) }}" wire:navigate class="grid gap-2 rounded-sm p-2 transition hover:bg-zinc-50 dark:hover:bg-slate-800">
-                    <div class="flex justify-between gap-4 text-sm"><span class="font-medium">{{ $item['nombre'] }}</span><span>{{ $item['cantidad'] }}</span></div>
-                    <progress class="h-2 w-full accent-[#006a61]" max="{{ $maxMateria }}" value="{{ $item['cantidad'] }}">{{ $item['cantidad'] }}</progress>
-                </a>
-            @empty
-                <flux:text>No existen causas para los filtros seleccionados.</flux:text>
-            @endforelse
-        </div>
-    </flux:card>
-
     <div class="grid gap-6 xl:grid-cols-2" wire:loading.class="opacity-60">
+        <flux:card class="grid content-start gap-5">
+            <div><flux:heading size="lg">Causas por materia</flux:heading><flux:text>Distribución circular de expedientes del período seleccionado.</flux:text></div>
+            <x-dashboard.donut-chart :items="$data['causasPorMateria']" test-id="circular-chart-materias" empty-message="Sin datos de materias." />
+        </flux:card>
+
         <flux:card class="grid content-start gap-5">
             <div><flux:heading size="lg">Estado de las causas</flux:heading><flux:text>Distribución circular y porcentual por estado.</flux:text></div>
             <x-dashboard.donut-chart :items="$data['causasPorEstado']" test-id="circular-chart-estados" empty-message="Sin datos de estados." />
         </flux:card>
+    </div>
 
+    <div class="grid gap-6 xl:grid-cols-2" wire:loading.class="opacity-60">
         <flux:card class="grid content-start gap-5">
             <div><flux:heading size="lg">Estados procesales</flux:heading><flux:text>Distribución circular de la etapa procesal actual.</flux:text></div>
             <x-dashboard.donut-chart :items="$data['causasPorEstadoProcesal']" test-id="circular-chart-estados-procesales" empty-message="Sin datos de estados procesales." />
+        </flux:card>
+
+        <flux:card class="grid content-start gap-5">
+            <div><flux:heading size="lg">Causas por dirección</flux:heading><flux:text>Distribución circular por dirección asignada.</flux:text></div>
+            <x-dashboard.donut-chart :items="$data['causasPorDireccion']" test-id="circular-chart-direcciones" empty-message="Sin datos de direcciones." />
         </flux:card>
     </div>
 
@@ -345,10 +361,24 @@ new #[Title('Panel principal')] class extends Component
     <div class="grid gap-6 xl:grid-cols-2" wire:loading.class="opacity-60">
         <flux:card class="grid content-start gap-5">
             <div><flux:heading size="lg">Ingreso mensual de causas</flux:heading><flux:text>Los meses sin registros se conservan con valor cero.</flux:text></div>
-            <div class="grid gap-3">
-                @foreach ($data['causasPorMes'] as $month)
-                    <div wire:key="causas-mes-{{ $month['mes'] }}" class="grid grid-cols-[2.5rem_1fr_2rem] items-center gap-3 text-sm"><span class="font-medium">{{ $month['nombre'] }}</span><progress class="h-2 w-full accent-[#006a61]" max="{{ $maxCausasMes }}" value="{{ $month['cantidad'] }}">{{ $month['cantidad'] }}</progress><span class="text-right">{{ $month['cantidad'] }}</span></div>
-                @endforeach
+            <div data-testid="monthly-cause-chart" class="overflow-x-auto">
+                <div class="grid min-w-[36rem] grid-cols-12 items-end gap-2">
+                    @foreach ($data['causasPorMes'] as $month)
+                        @php
+                            $height = (int) round(($month['cantidad'] / $maxCausasMes) * 100);
+                            $position = 100 - $height;
+                        @endphp
+                        <div wire:key="causas-mes-{{ $month['mes'] }}" class="grid gap-2 text-center">
+                            <span class="text-xs font-semibold text-zinc-600 dark:text-zinc-300">{{ $month['cantidad'] }}</span>
+                            <svg viewBox="0 0 24 100" class="h-40 w-full" role="img">
+                                <title>{{ $month['nombre'] }}: {{ $month['cantidad'] }} causas</title>
+                                <rect x="3" y="0" width="18" height="100" rx="3" class="fill-zinc-100 dark:fill-slate-800" />
+                                <rect x="3" y="{{ $position }}" width="18" height="{{ $height }}" rx="3" class="fill-[#006a61] dark:fill-teal-400" />
+                            </svg>
+                            <span class="text-xs font-semibold text-zinc-500">{{ $month['nombre'] }}</span>
+                        </div>
+                    @endforeach
+                </div>
             </div>
             <div data-testid="annual-cause-variation" class="flex flex-col justify-between gap-3 border-t border-zinc-200 pt-4 sm:flex-row sm:items-center dark:border-slate-700">
                 <div class="grid gap-1">
@@ -369,14 +399,45 @@ new #[Title('Panel principal')] class extends Component
 
         <flux:card class="grid content-start gap-5">
             <div><flux:heading size="lg">Ingresos vs. egresos por mes</flux:heading><flux:text>Comparación financiera en pesos chilenos.</flux:text></div>
-            <div class="grid gap-4">
-                @foreach ($data['finanzasPorMes'] as $month)
-                    <div wire:key="finanzas-mes-{{ $month['mes'] }}" class="grid gap-2">
-                        <span class="text-xs font-semibold">{{ $month['nombre'] }}</span>
-                        <div class="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-xs"><span class="text-emerald-700 dark:text-emerald-300">Ingresos</span><progress class="h-2 w-full accent-emerald-600" max="{{ $maxFinanzasMes }}" value="{{ $month['ingresos'] }}">{{ $month['ingresos'] }}</progress><span>{{ $this->formatClp($month['ingresos']) }}</span></div>
-                        <div class="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-xs"><span class="text-rose-700 dark:text-rose-300">Egresos</span><progress class="h-2 w-full accent-rose-600" max="{{ $maxFinanzasMes }}" value="{{ $month['egresos'] }}">{{ $month['egresos'] }}</progress><span>{{ $this->formatClp($month['egresos']) }}</span></div>
-                    </div>
-                @endforeach
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium">
+                <span class="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><span class="size-3 rounded-sm bg-emerald-600"></span>Ingresos</span>
+                <span class="inline-flex items-center gap-2 text-rose-700 dark:text-rose-300"><span class="size-3 rounded-sm bg-rose-600"></span>Egresos</span>
+            </div>
+            <div data-testid="monthly-finance-chart" class="overflow-x-auto">
+                <div class="grid min-w-[36rem] grid-cols-12 items-end gap-2">
+                    @foreach ($data['finanzasPorMes'] as $month)
+                        @php
+                            $incomeHeight = (int) round(($month['ingresos'] / $maxFinanzasMes) * 100);
+                            $expenseHeight = (int) round(($month['egresos'] / $maxFinanzasMes) * 100);
+                            $incomePosition = 100 - $incomeHeight;
+                            $expensePosition = 100 - $expenseHeight;
+                        @endphp
+                        <div wire:key="finanzas-mes-{{ $month['mes'] }}" class="grid gap-2 text-center">
+                            <svg viewBox="0 0 32 100" class="h-40 w-full" role="img">
+                                <title>{{ $month['nombre'] }}: ingresos {{ $this->formatClp($month['ingresos']) }}, egresos {{ $this->formatClp($month['egresos']) }}</title>
+                                <rect x="3" y="0" width="11" height="100" rx="2" class="fill-zinc-100 dark:fill-slate-800" />
+                                <rect x="18" y="0" width="11" height="100" rx="2" class="fill-zinc-100 dark:fill-slate-800" />
+                                <rect x="3" y="{{ $incomePosition }}" width="11" height="{{ $incomeHeight }}" rx="2" class="fill-emerald-600 dark:fill-emerald-400" />
+                                <rect x="18" y="{{ $expensePosition }}" width="11" height="{{ $expenseHeight }}" rx="2" class="fill-rose-600 dark:fill-rose-400" />
+                            </svg>
+                            <span class="text-xs font-semibold text-zinc-500">{{ $month['nombre'] }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            <div data-testid="annual-finance-summary" class="grid gap-3 border-t border-zinc-200 pt-4 sm:grid-cols-3 dark:border-slate-700">
+                <div class="grid gap-1">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total ingresos</span>
+                    <span class="text-lg font-semibold text-emerald-800 dark:text-emerald-200">{{ $this->formatClp($summary['totalIngresos']) }}</span>
+                </div>
+                <div class="grid gap-1">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Total egresos</span>
+                    <span class="text-lg font-semibold text-rose-800 dark:text-rose-200">{{ $this->formatClp($summary['totalEgresos']) }}</span>
+                </div>
+                <div class="grid gap-1">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-[#006a61] dark:text-teal-300">Saldo</span>
+                    <span class="text-lg font-semibold {{ $summary['saldo'] < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[#091426] dark:text-slate-100' }}">{{ $this->formatClp($summary['saldo']) }}</span>
+                </div>
             </div>
         </flux:card>
     </div>
@@ -427,4 +488,15 @@ new #[Title('Panel principal')] class extends Component
             @endforelse
         </div>
     </flux:card>
+
+    <style>
+    @media print {
+        @page { size: 8.5in 13in; margin: 8mm; }
+
+        [data-flux-sidebar], [data-flux-sidebar-backdrop], [data-flux-sidebar-profile], [data-flux-sidebar-toggle], [data-flux-header], ui-sidebar, ui-header, ui-sidebar-toggle, nav, .slad-sidebar, .dashboard-filters, .dashboard-print-control, .dashboard-profile { display: none !important; }
+        html, body, .slad-main { min-height: 0 !important; height: auto !important; background: #fff !important; color: #111 !important; }
+        .slad-main > [wire\:id] { flex: none !important; }
+        [data-flux-card], [data-testid="monthly-cause-chart"], [data-testid="monthly-finance-chart"], tr { break-inside: avoid; page-break-inside: avoid; }
+    }
+    </style>
 </div>

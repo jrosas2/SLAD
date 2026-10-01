@@ -4,6 +4,7 @@ use App\Enums\TipoMovimientoFinanciero;
 use App\Models\Actuacion;
 use App\Models\Causa;
 use App\Models\Ciudad;
+use App\Models\Direccion;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
@@ -19,6 +20,7 @@ function dashboardFilters(array $overrides = []): array
     return array_replace([
         'year' => null,
         'materiaId' => null,
+        'direccionId' => null,
         'responsableId' => null,
         'estadoCausaId' => null,
         'estadoProcesalId' => null,
@@ -35,8 +37,29 @@ test('el administrador puede visualizar el dashboard estadístico', function () 
         ->assertOk()
         ->assertSee('Panel administrativo y jurídico')
         ->assertSee('Total de causas')
+        ->assertSeeHtml('data-testid="monthly-cause-chart"')
+        ->assertSeeHtml('data-testid="monthly-finance-chart"')
+        ->assertSeeHtml('data-testid="annual-finance-summary"')
+        ->assertSeeHtml('data-testid="circular-chart-materias"')
         ->assertSeeHtml('data-testid="circular-chart-estados"')
-        ->assertSeeHtml('data-testid="circular-chart-estados-procesales"');
+        ->assertSeeHtml('data-testid="circular-chart-estados-procesales"')
+        ->assertSeeHtml('data-testid="circular-chart-direcciones"');
+});
+
+test('el dashboard permite imprimir su contenido sin los filtros globales', function () {
+    $administrador = User::factory()->administrador()->create();
+
+    $this->actingAs($administrador)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Imprimir')
+        ->assertSee('window.print()')
+        ->assertSee('dashboard-filters')
+        ->assertSee('dashboard-print-control')
+        ->assertSee('dashboard-profile')
+        ->assertSee('[data-flux-header]')
+        ->assertSee('size: 8.5in 13in')
+        ->assertSee('break-inside: avoid');
 });
 
 test('los indicadores de causas que requieren atención enlazan al listado con el filtro visible', function () {
@@ -174,6 +197,18 @@ test('agrupa las causas por estado procesal', function () {
         ->and($grouped->firstWhere('id', null)['cantidad'])->toBe(1);
 });
 
+test('agrupa las causas por dirección e incluye la categoría sin dirección', function () {
+    $juridica = Direccion::factory()->create(['nombre' => 'JURÍDICA']);
+    Causa::factory()->count(2)->create(['direccion_id' => $juridica]);
+    Causa::factory()->create(['direccion_id' => null]);
+
+    $grouped = collect(app(DashboardStatsService::class)->causasPorDireccion(dashboardFilters()));
+
+    expect($grouped->firstWhere('id', $juridica->id)['cantidad'])->toBe(2)
+        ->and($grouped->firstWhere('id', null)['nombre'])->toBe('SIN DIRECCIÓN')
+        ->and($grouped->firstWhere('id', null)['cantidad'])->toBe(1);
+});
+
 test('el filtro anual de causas usa exclusivamente fecha de ingreso', function () {
     Causa::factory()->create(['fecha_ingreso' => '2026-03-01', 'fecha_causa' => '2025-01-01']);
     Causa::factory()->create(['fecha_ingreso' => '2025-03-01', 'fecha_causa' => '2026-01-01']);
@@ -214,6 +249,35 @@ test('el filtro por materia actualiza todas las estadísticas compatibles', func
 
     expect($summary['totalCausas'])->toBe(1)
         ->and($summary['totalIngresos'])->toBe(100000);
+});
+
+test('el filtro por dirección actualiza las estadísticas financieras y de causas', function () {
+    $juridica = Direccion::factory()->create(['nombre' => 'JURÍDICA']);
+    $finanzas = Direccion::factory()->create(['nombre' => 'FINANZAS']);
+    $causaJuridica = Causa::factory()->for($juridica)->create();
+    $causaFinanzas = Causa::factory()->for($finanzas)->create();
+    MovimientoFinanciero::factory()->for($causaJuridica)->create(['tipo' => TipoMovimientoFinanciero::Ingreso, 'monto' => 100000]);
+    MovimientoFinanciero::factory()->for($causaFinanzas)->create(['tipo' => TipoMovimientoFinanciero::Ingreso, 'monto' => 900000]);
+
+    $summary = app(DashboardStatsService::class)->resumen(dashboardFilters(['direccionId' => $juridica->id]));
+
+    expect($summary['totalCausas'])->toBe(1)
+        ->and($summary['totalIngresos'])->toBe(100000);
+});
+
+test('el dashboard permite filtrar por dirección', function () {
+    $administrador = User::factory()->administrador()->create();
+    $juridica = Direccion::factory()->create(['nombre' => 'JURÍDICA']);
+    Causa::factory()->count(2)->for($juridica)->create();
+    Causa::factory()->create();
+    $this->actingAs($administrador);
+
+    $component = Livewire::test('pages::dashboard')
+        ->set('direccionFilter', (string) $juridica->id)
+        ->assertSet('direccionFilter', (string) $juridica->id)
+        ->assertSee('Dirección');
+
+    expect($component->get('dashboardData')['resumen']['totalCausas'])->toBe(2);
 });
 
 test('el filtro por responsable limita las causas', function () {
