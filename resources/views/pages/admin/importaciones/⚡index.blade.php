@@ -171,11 +171,30 @@ new #[Title('Importación histórica')] class extends Component
             fputcsv($stream, ['fila', 'numero_causa', 'campo', 'valor', 'error'], ';');
 
             foreach ($importacion->errores as $error) {
-                fputcsv($stream, [$error->fila, $error->numero_causa, $error->campo, $error->valor_original, $error->mensaje], ';');
+                fputcsv($stream, array_map(
+                    $this->sanitizarCeldaCsv(...),
+                    [$error->fila, $error->numero_causa, $error->campo, $error->valor_original, $error->mensaje]
+                ), ';');
             }
 
             fclose($stream);
         }, 'errores-importacion-'.$importacion->id.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Neutraliza la inyección de fórmulas CSV: una celda que comienza con
+     * = + - @ (o tab/retorno de carro) es interpretada como fórmula por
+     * Excel/Sheets. Se antepone un apóstrofo para forzar su lectura como texto.
+     */
+    private function sanitizarCeldaCsv(mixed $valor): string
+    {
+        $texto = (string) $valor;
+
+        if ($texto !== '' && in_array($texto[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'".$texto;
+        }
+
+        return $texto;
     }
 
     /** @return Collection<int, Importacion> */
