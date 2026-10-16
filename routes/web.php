@@ -6,7 +6,6 @@ use App\Http\Controllers\GoogleCalendarOAuthController;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\GoogleCalendarController;
 
 Route::view('/', 'welcome')->name('home');
 
@@ -78,15 +77,4 @@ Route::middleware(['auth', EnsureUserIsActive::class, EnsurePasswordChanged::cla
         });
 });
 
-   Route::middleware(['auth'])->group(function () {
-      Route::get('/google/redirect', [GoogleCalendarController::class, 'redirectToGoogle'])->name('google.redirect');
-      Route::get('/google/callback', [GoogleCalendarController::class, 'handleGoogleCallback'])->name('google.callback');
-});
-
 require __DIR__.'/settings.php';
-
-// Rutas Google Calendar
-Route::middleware(['auth'])->group(function () {
-    Route::get('/google/redirect', [\App\Http\Controllers\GoogleCalendarController::class, 'redirectToGoogle'])->name('google.redirect');
-    Route::get('/google/callback', [\App\Http\Controllers\GoogleCalendarController::class, 'handleGoogleCallback'])->name('google.callback');
-});
