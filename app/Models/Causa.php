@@ -109,6 +109,32 @@ class Causa extends Model
         return $this->hasMany(Recordatorio::class)->orderBy('fecha_hora');
     }
 
+    /** @return HasMany<PjudMovimiento, $this> */
+    public function pjudMovimientos(): HasMany
+    {
+        return $this->hasMany(PjudMovimiento::class)->orderByDesc('fecha_estado_diario')->orderByDesc('id');
+    }
+
+    /**
+     * Causas que el monitoreo PJUD debe revisar: con número de ingreso y en un
+     * estado de causa consultable (por defecto sólo VIGENTE; ver config/pjud.php).
+     *
+     * @param  Builder<Causa>  $query
+     * @return Builder<Causa>
+     */
+    public function scopeConsultablesPjud(Builder $query): Builder
+    {
+        $estados = array_values(array_filter(array_map(
+            fn ($estado) => mb_strtoupper(trim((string) $estado)),
+            (array) config('pjud.estados_causa_consultables', ['VIGENTE']),
+        )));
+
+        return $query
+            ->whereNotNull('numero_causa')
+            ->where('numero_causa', '!=', '')
+            ->whereHas('estadoCausa', fn (Builder $estado) => $estado->whereIn('nombre', $estados));
+    }
+
     /** @param Builder<Causa> $query */
     public function scopeVisibleFor(Builder $query, User $user): Builder
     {

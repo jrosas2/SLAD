@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             DireccionSeeder::class,
             CiudadSeeder::class,
             JuzgadoSeeder::class,
+            TribunalPjudSeeder::class,
             EstadoCausaSeeder::class,
             EstadoProcesalSeeder::class,
         ]);

@@ -35,7 +35,7 @@ return [
         ],
     ],
 
-	'google_calendar' => [
+    'google_calendar' => [
         'enabled' => env('GOOGLE_CALENDAR_ENABLED', false),
         'calendar_id' => env('GOOGLE_CALENDAR_ID'),
         'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID'),

@@ -11,7 +11,7 @@ class GoogleCalendarController extends Controller
 {
     private function getGoogleClient()
     {
-        $client = new GoogleClient();
+        $client = new GoogleClient;
         $client->setClientId(config('services.google.client_id'));
         $client->setClientSecret(config('services.google.client_secret'));
         $client->setRedirectUri(config('services.google.redirect_uri'));
@@ -25,12 +25,13 @@ class GoogleCalendarController extends Controller
     public function redirectToGoogle()
     {
         $client = $this->getGoogleClient();
+
         return redirect()->away($client->createAuthUrl());
     }
 
     public function handleGoogleCallback(Request $request)
     {
-        if (!$request->has('code')) {
+        if (! $request->has('code')) {
             return redirect()->route('dashboard')->with('error', 'No se otorgaron permisos de Google.');
         }
 

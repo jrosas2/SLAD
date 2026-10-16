@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Pjud\EstadoDiarioHtmlParser;
+use App\Services\Pjud\EstadoDiarioPjudClient;
+use App\Services\Pjud\FuenteEstadoDiario;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
@@ -18,7 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(FuenteEstadoDiario::class, EstadoDiarioPjudClient::class);
+        $this->app->bind(EstadoDiarioHtmlParser::class, fn (): EstadoDiarioHtmlParser => new EstadoDiarioHtmlParser(
+            (array) config('pjud.estado_diario.columnas', []),
+        ));
     }
 
     /**
