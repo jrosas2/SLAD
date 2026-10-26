@@ -6,7 +6,6 @@ use App\Enums\AccionAuditoria;
 use App\Models\Auditoria;
 use App\Models\Causa;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 
@@ -55,8 +54,8 @@ class AuditoriaService
             'causa_id' => $this->resolveCausaId($model),
             'valores_anteriores' => $this->sanitize($before),
             'valores_nuevos' => $this->sanitize($after),
-            'ip_address' => $request instanceof Request ? $request->ip() : null,
-            'user_agent' => $request instanceof Request ? $request->userAgent() : null,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
     }
 

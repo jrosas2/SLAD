@@ -3,6 +3,7 @@
 use App\Enums\Permiso;
 use App\Models\Ciudad;
 use App\Models\Juzgado;
+use App\Models\TribunalPjud;
 use Flux\Flux;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +28,8 @@ new #[Title('Juzgados')] class extends Component {
     public string $ciudadId = '';
 
     public string $nombre = '';
+
+    public string $tribunalPjudCodigo = '';
 
     public bool $activo = true;
 
@@ -64,7 +67,7 @@ new #[Title('Juzgados')] class extends Component {
     public function records(): LengthAwarePaginator
     {
         return Juzgado::query()
-            ->select(['id', 'ciudad_id', 'nombre', 'activo'])
+            ->select(['id', 'ciudad_id', 'nombre', 'tribunal_pjud_codigo', 'activo'])
             ->with('ciudad:id,nombre')
             ->when($this->search !== '', function (Builder $query): void {
                 $search = '%'.trim($this->search).'%';
@@ -97,6 +100,7 @@ new #[Title('Juzgados')] class extends Component {
         $this->editingId = $juzgado->id;
         $this->ciudadId = (string) $juzgado->ciudad_id;
         $this->nombre = $juzgado->nombre;
+        $this->tribunalPjudCodigo = (string) ($juzgado->tribunal_pjud_codigo ?? '');
         $this->activo = $juzgado->activo;
         $this->showModal = true;
     }
@@ -117,16 +121,19 @@ new #[Title('Juzgados')] class extends Component {
                     ->where(fn (QueryBuilder $query) => $query->where('ciudad_id', $this->ciudadId))
                     ->ignore($this->editingId),
             ],
+            'tribunalPjudCodigo' => ['nullable', 'integer', Rule::exists(TribunalPjud::class, 'codigo')],
             'activo' => ['required', 'boolean'],
         ], attributes: [
             'ciudadId' => 'ciudad',
             'nombre' => 'nombre',
+            'tribunalPjudCodigo' => 'código PJUD',
             'activo' => 'estado',
         ]);
 
         $attributes = [
             'ciudad_id' => (int) $validated['ciudadId'],
             'nombre' => $validated['nombre'],
+            'tribunal_pjud_codigo' => filled($validated['tribunalPjudCodigo']) ? (int) $validated['tribunalPjudCodigo'] : null,
             'activo' => $validated['activo'],
         ];
 
@@ -162,6 +169,7 @@ new #[Title('Juzgados')] class extends Component {
         $this->editingId = null;
         $this->ciudadId = '';
         $this->nombre = '';
+        $this->tribunalPjudCodigo = '';
         $this->activo = true;
     }
 }; ?>
@@ -194,6 +202,7 @@ new #[Title('Juzgados')] class extends Component {
             <flux:table.columns>
                 <flux:table.column>Juzgado</flux:table.column>
                 <flux:table.column>Ciudad</flux:table.column>
+                <flux:table.column>Código PJUD</flux:table.column>
                 <flux:table.column>Estado</flux:table.column>
                 @canany([\App\Enums\Permiso::CatalogosEditar->value, \App\Enums\Permiso::CatalogosDesactivar->value])
                     <flux:table.column align="end">Acciones</flux:table.column>
@@ -204,6 +213,7 @@ new #[Title('Juzgados')] class extends Component {
                     <flux:table.row :key="$juzgado->id">
                         <flux:table.cell variant="strong">{{ $juzgado->nombre }}</flux:table.cell>
                         <flux:table.cell>{{ $juzgado->ciudad->nombre }}</flux:table.cell>
+                        <flux:table.cell>{{ $juzgado->tribunal_pjud_codigo ?? '—' }}</flux:table.cell>
                         <flux:table.cell>
                             <flux:badge :color="$juzgado->activo ? 'green' : 'zinc'" size="sm">{{ $juzgado->activo ? 'Activo' : 'Inactivo' }}</flux:badge>
                         </flux:table.cell>
@@ -222,7 +232,7 @@ new #[Title('Juzgados')] class extends Component {
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                    <flux:table.cell colspan="4" class="py-10 text-center">No se encontraron juzgados.</flux:table.cell>
+                    <flux:table.cell colspan="5" class="py-10 text-center">No se encontraron juzgados.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
@@ -243,6 +253,7 @@ new #[Title('Juzgados')] class extends Component {
                 @endforeach
             </flux:select>
             <flux:input wire:model="nombre" label="Nombre" required />
+            <flux:input wire:model="tribunalPjudCodigo" label="Código tribunal PJUD" type="number" placeholder="Ej. 6053101" description="Se usa para revisar el Estado Diario del Poder Judicial. Déjelo vacío si no aplica." />
             <flux:switch wire:model="activo" label="Registro activo" />
 
             <div class="flex justify-end gap-3">

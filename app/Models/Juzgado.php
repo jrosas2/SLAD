@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['ciudad_id', 'nombre', 'activo'])]
+#[Fillable(['ciudad_id', 'nombre', 'tribunal_pjud_codigo', 'activo'])]
 class Juzgado extends Model
 {
     /** @use HasFactory<JuzgadoFactory> */
@@ -27,6 +27,12 @@ class Juzgado extends Model
         return $this->belongsTo(Ciudad::class);
     }
 
+    /** @return BelongsTo<TribunalPjud, $this> */
+    public function tribunalPjud(): BelongsTo
+    {
+        return $this->belongsTo(TribunalPjud::class, 'tribunal_pjud_codigo', 'codigo');
+    }
+
     /** @return HasMany<Causa, $this> */
     public function causas(): HasMany
     {
@@ -38,6 +44,7 @@ class Juzgado extends Model
     {
         return [
             'activo' => 'boolean',
+            'tribunal_pjud_codigo' => 'integer',
         ];
     }
 }

@@ -9,8 +9,14 @@ trait Auditable
 {
     public static function bootAuditable(): void
     {
-        static::created(fn (Model $model): mixed => app(AuditoriaService::class)->created($model));
-        static::updated(fn (Model $model): mixed => app(AuditoriaService::class)->updated($model));
-        static::deleted(fn (Model $model): mixed => app(AuditoriaService::class)->deleted($model));
+        static::created(function (Model $model): void {
+            app(AuditoriaService::class)->created($model);
+        });
+        static::updated(function (Model $model): void {
+            app(AuditoriaService::class)->updated($model);
+        });
+        static::deleted(function (Model $model): void {
+            app(AuditoriaService::class)->deleted($model);
+        });
     }
 }

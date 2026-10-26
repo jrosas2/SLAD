@@ -74,7 +74,7 @@ class DocumentStorageService
                 return $document;
             });
         } catch (\Throwable $exception) {
-            if ($storedPath !== null) {
+            if (is_string($storedPath)) {
                 Storage::disk('local')->delete($storedPath);
             }
 

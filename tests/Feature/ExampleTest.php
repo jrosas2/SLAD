@@ -6,8 +6,8 @@ test('la portada pública presenta la identidad de SLAD', function () {
     $response = $this->get(route('home'));
 
     $response->assertOk()
-        ->assertSee('Sistema Logístico de Administración de Derecho')
-        ->assertSee('Gestión Inteligente de Logística Legal')
+        ->assertSee('Sistema Logístico de Administración de causas jurídicas')
+        ->assertSee('Sistema de Gestión de Causas')
         ->assertSee('Infraestructura Funcional')
         ->assertSee('Seguridad y roles')
         ->assertSee('Ingresar')
