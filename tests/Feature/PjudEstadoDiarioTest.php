@@ -289,3 +289,35 @@ test('la coincidencia parcial se puede desactivar', function () {
 
     expect(PjudMovimiento::query()->count())->toBe(0);
 });
+
+test('reintenta el aviso de un movimiento que quedó sin notificar en una revisión anterior', function () {
+    Queue::fake([NotificarMovimientoPjudGoogleCalendar::class]);
+    $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
+    $juzgado = Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo]);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-1234-2025']);
+    fuenteFalsa([new EntradaEstadoDiario('C-1234-2025', null, 'PÉREZ / BANCO', 'Resolución')]);
+
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($tribunal->codigo, '2026-10-16'));
+    Queue::assertPushed(NotificarMovimientoPjudGoogleCalendar::class, 1);
+
+    // El aviso no llegó a enviarse (notificado_at sigue vacío). Una hora después se reintenta.
+    $this->travel(61)->minutes();
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($tribunal->codigo, '2026-10-16'));
+    Queue::assertPushed(NotificarMovimientoPjudGoogleCalendar::class, 2);
+
+    // Ya notificado: no se vuelve a enviar.
+    PjudMovimiento::query()->update(['notificado_at' => now()]);
+    $this->travel(61)->minutes();
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($tribunal->codigo, '2026-10-16'));
+    Queue::assertPushed(NotificarMovimientoPjudGoogleCalendar::class, 2);
+    expect(PjudMovimiento::query()->count())->toBe(1);
+});
+
+test('las consultas de hoy y de ayer del mismo tribunal no se bloquean entre sí', function () {
+    $hoy = (new ConsultarEstadoDiarioTribunal(6053101, '2026-10-16'))->middleware()[0];
+    $ayer = (new ConsultarEstadoDiarioTribunal(6053101, '2026-10-15'))->middleware()[0];
+    $otraVez = (new ConsultarEstadoDiarioTribunal(6053101, '2026-10-16'))->middleware()[0];
+
+    expect($hoy->key)->not->toBe($ayer->key)
+        ->and($hoy->key)->toBe($otraVez->key);
+});
