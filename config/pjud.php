@@ -185,5 +185,9 @@ return [
             'trim',
             explode(',', (string) env('PJUD_CORREOS_NOTIFICACION', '')),
         ))),
+
+        // Si un aviso quedó sin enviar (job interrumpido, Google Calendar sin
+        // conexión…), la revisión siguiente lo reintenta pasados estos minutos.
+        'reintentar_pendientes_minutos' => (int) env('PJUD_REINTENTAR_PENDIENTES_MINUTOS', 30),
     ],
 ];
