@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\PjudMovimiento;
 use App\Models\TribunalPjud;
 use App\Services\Pjud\DetectorMovimientosPjud;
 use App\Services\Pjud\FuenteEstadoDiario;
@@ -52,18 +53,54 @@ class ConsultarEstadoDiarioTribunal implements ShouldQueue
             NotificarMovimientoPjudGoogleCalendar::dispatch($movimiento->id);
         }
 
+        // Reintenta los avisos que quedaron pendientes en una revisión anterior
+        // (job interrumpido, Google Calendar sin conexión, etc.). Sólo los que
+        // llevan un tiempo sin notificar, para no duplicar un aviso que ya está en cola.
+        $pendientes = $this->reenviarAvisosPendientes($tribunal, $fecha, array_map(
+            fn (array $nuevo): int => $nuevo[0]->id,
+            $nuevos,
+        ));
+
         Log::info('Estado Diario PJUD revisado.', [
             'tribunal' => $tribunal->codigo,
             'fecha' => $fecha->toDateString(),
             'filas_listado' => count($entradas),
             'movimientos_nuevos' => count($nuevos),
+            'avisos_reenviados' => $pendientes,
         ]);
     }
 
-    /** @return array<int, object> */
+    /**
+     * @param  list<int>  $excluir  Movimientos recién creados (ya se despachó su aviso).
+     */
+    private function reenviarAvisosPendientes(TribunalPjud $tribunal, CarbonImmutable $fecha, array $excluir): int
+    {
+        $minutos = max(1, (int) config('pjud.notificacion.reintentar_pendientes_minutos', 30));
+
+        $ids = PjudMovimiento::query()
+            ->where('tribunal_pjud_codigo', $tribunal->codigo)
+            ->whereDate('fecha_estado_diario', $fecha->toDateString())
+            ->whereNull('notificado_at')
+            ->where('updated_at', '<=', now()->subMinutes($minutos))
+            ->whereNotIn('id', $excluir)
+            ->pluck('id');
+
+        foreach ($ids as $id) {
+            NotificarMovimientoPjudGoogleCalendar::dispatch((int) $id);
+        }
+
+        return $ids->count();
+    }
+
+    /**
+     * Un bloqueo por tribunal Y fecha: las consultas de "hoy" y "ayer" del mismo
+     * tribunal no se bloquean entre sí (antes se liberaban y gastaban intentos).
+     *
+     * @return array<int, object>
+     */
     public function middleware(): array
     {
-        return [(new WithoutOverlapping("pjud-estado-diario-{$this->tribunalCodigo}"))->releaseAfter(30)->expireAfter(300)];
+        return [(new WithoutOverlapping("pjud-estado-diario-{$this->tribunalCodigo}-{$this->fecha}"))->releaseAfter(30)->expireAfter(300)];
     }
 
     public function failed(?Throwable $exception): void
