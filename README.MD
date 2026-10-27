@@ -12,7 +12,7 @@ Las versiones corresponden a las dependencias instaladas en el proyecto.
 
 | Componente | Versión / tecnología |
 | --- | --- |
-| PHP requerido | `^8.3` |
+| PHP requerido | `^8.4.1` (lo exigen Laravel 13 / Symfony 8) |
 | Laravel Framework | 13.29.0 |
 | Laravel Fortify | 1.38.0 |
 | Livewire | 4.4.1 |
