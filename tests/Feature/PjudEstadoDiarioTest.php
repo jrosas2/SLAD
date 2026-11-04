@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\RevisarEstadoDiarioPjud;
 use App\Jobs\ConsultarEstadoDiarioTribunal;
 use App\Jobs\NotificarMovimientoPjudGoogleCalendar;
 use App\Models\Causa;
@@ -321,3 +322,15 @@ test('las consultas de hoy y de ayer del mismo tribunal no se bloquean entre sí
     expect($hoy->key)->not->toBe($ayer->key)
         ->and($hoy->key)->toBe($otraVez->key);
 });
+
+test('la frecuencia de revisión se configura con PJUD_FRECUENCIA_MINUTOS', function (int $minutos, string $cron) {
+    config()->set('pjud.horario.frecuencia_minutos', $minutos);
+
+    expect(RevisarEstadoDiarioPjud::expresionCron())->toBe($cron);
+})->with([
+    'cada hora (por defecto)' => [60, '0 * * * *'],
+    'cada 30 minutos' => [30, '*/30 * * * *'],
+    'cada 15 minutos' => [15, '*/15 * * * *'],
+    'mínimo 5 minutos' => [1, '*/5 * * * *'],
+    'máximo una hora' => [120, '0 * * * *'],
+]);
