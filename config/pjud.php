@@ -5,7 +5,7 @@
 | Monitoreo del Estado Diario del Poder Judicial (PJUD)
 |--------------------------------------------------------------------------
 |
-| SLAD revisa, cada hora dentro del horario configurado, el Estado Diario de
+| SLAD revisa, cada PJUD_FRECUENCIA_MINUTOS dentro del horario configurado, el Estado Diario de
 | los tribunales donde existen causas registradas. Cuando una causa aparece
 | en el listado (match por número de ingreso + nombre del tribunal), se crea
 | un evento "🚩 Actividad P. Judicial" en el calendario Google institucional.
@@ -63,6 +63,10 @@ return [
     'horario' => [
         'hora_inicio' => (int) env('PJUD_HORA_INICIO', 8),
         'hora_fin' => (int) env('PJUD_HORA_FIN', 18),
+
+        // Cada cuántos minutos se revisa dentro del horario (5 a 60).
+        // Conviene un divisor de 60 (5, 10, 15, 20, 30) para horarios parejos.
+        'frecuencia_minutos' => (int) env('PJUD_FRECUENCIA_MINUTOS', 60),
     ],
 
     /*
