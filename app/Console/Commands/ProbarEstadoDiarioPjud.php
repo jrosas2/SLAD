@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\TribunalPjud;
-use App\Services\Pjud\EstadoDiarioHtmlParser;
 use App\Services\Pjud\EstadoDiarioPjudClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
@@ -19,7 +18,7 @@ use Illuminate\Support\Str;
 #[Description('Consulta el Estado Diario de un tribunal y muestra lo que SLAD entiende (no guarda ni notifica nada)')]
 class ProbarEstadoDiarioPjud extends Command
 {
-    public function handle(EstadoDiarioPjudClient $cliente, EstadoDiarioHtmlParser $parser): int
+    public function handle(EstadoDiarioPjudClient $cliente): int
     {
         $tribunal = TribunalPjud::query()->find((int) $this->argument('tribunal'));
 
@@ -41,7 +40,7 @@ class ProbarEstadoDiarioPjud extends Command
             $this->line("Respuesta guardada en storage/app/private/{$ruta}");
         }
 
-        $entradas = $parser->parse($html);
+        $entradas = $cliente->parsear($tribunal, $html);
 
         if ($entradas === []) {
             $this->warn('No se reconocieron filas. Revise la URL/campos en .env o los encabezados en config/pjud.php (use --guardar-html).');
