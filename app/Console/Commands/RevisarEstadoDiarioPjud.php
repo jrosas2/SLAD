@@ -83,6 +83,17 @@ class RevisarEstadoDiarioPjud extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Expresión cron de la revisión según PJUD_FRECUENCIA_MINUTOS (entre 5 y 60).
+     * Con 60 corre cada hora en punto; con 30, a los minutos :00 y :30.
+     */
+    public static function expresionCron(): string
+    {
+        $minutos = max(5, min(60, (int) config('pjud.horario.frecuencia_minutos', 60)));
+
+        return $minutos >= 60 ? '0 * * * *' : "*/{$minutos} * * * *";
+    }
+
     private function dentroDelHorario(\DateTimeInterface $momento): bool
     {
         $hora = (int) $momento->format('G');
