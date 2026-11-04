@@ -111,7 +111,7 @@ POST https://www.pjud.cl/ajax/Courts/getDailyStatements
      cod_tribunal=6053101   tipo_juzgado=6   date=15-10-2026
 ```
 
-La respuesta es una tabla con las columnas **N° · Número de Ingreso · Partes · Providencias**. No trae columna de tribunal, porque el listado ya corresponde al tribunal consultado. Para las causas de SLAD que aparecen en el listado, también se pide el detalle (Tipo, Estado, Materia, Procedimiento) a `ajax/Courts/getDailyStatementByCause`, y ese detalle se agrega al evento.
+La respuesta es una tabla con las columnas **N° · Número de Ingreso · Partes · Providencias**. La **Corte Suprema** (código `6050000`) es distinta: su Estado Diario se pide a `ajax/Courts/getDailyStatementsXls` solo con la fecha y llega como JSON con la lista completa del día. Su número de ingreso es número-año (ej. `491-2025`). No trae columna de tribunal, porque el listado ya corresponde al tribunal consultado. Para las causas de SLAD que aparecen en el listado, también se pide el detalle (Tipo, Estado, Materia, Procedimiento) a `ajax/Courts/getDailyStatementByCause`, y ese detalle se agrega al evento.
 
 Estos valores ya vienen por defecto. Solo hay que tocarlos si el PJUD cambia algo:
 

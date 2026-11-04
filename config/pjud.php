@@ -99,6 +99,9 @@ return [
         // Sólo se consulta para las causas de SLAD detectadas. Vacío = no pedir detalle.
         'url_detalle' => env('PJUD_ESTADO_DIARIO_URL_DETALLE', 'https://www.pjud.cl/ajax/Courts/getDailyStatementByCause'),
 
+        // Corte Suprema: publica en otro servicio, como JSON con la lista completa del día.
+        'url_suprema' => env('PJUD_ESTADO_DIARIO_URL_SUPREMA', 'https://www.pjud.cl/ajax/Courts/getDailyStatementsXls'),
+
         'metodo' => strtoupper((string) env('PJUD_ESTADO_DIARIO_METODO', 'POST')),
 
         // Nombre de cada campo en la petición del PJUD.

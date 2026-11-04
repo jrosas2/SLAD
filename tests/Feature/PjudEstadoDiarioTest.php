@@ -334,3 +334,37 @@ test('la frecuencia de revisión se configura con PJUD_FRECUENCIA_MINUTOS', func
     'mínimo 5 minutos' => [1, '*/5 * * * *'],
     'máximo una hora' => [120, '0 * * * *'],
 ]);
+
+test('consulta la Corte Suprema en su propio servicio y detecta la causa por número y año', function () {
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://www.pjud.cl/tribunales/*' => Http::response('ok'),
+        'https://www.pjud.cl/ajax/Courts/getDailyStatementsXls' => Http::response([
+            ['COD_TRIBUNAL' => 1, 'COD_LIBRO' => 2, 'CRR_INGRESO_RECURSO' => 491, 'FEC_ERA_RECURSO' => 2025, 'CARATULADO' => 'ANDRADE CON FISCO', 'CANT_RESOLUCIONES' => 2],
+            ['COD_TRIBUNAL' => 1, 'COD_LIBRO' => 2, 'CRR_INGRESO_RECURSO' => 9999, 'FEC_ERA_RECURSO' => 2025, 'CARATULADO' => 'OTRA', 'CANT_RESOLUCIONES' => 1],
+        ]),
+    ]);
+    Queue::fake([NotificarMovimientoPjudGoogleCalendar::class]);
+    $suprema = tribunalPjud(6050000, 'CORTE SUPREMA', 1);
+    $juzgado = Juzgado::factory()->create(['nombre' => 'CORTE SUPREMA', 'tribunal_pjud_codigo' => $suprema->codigo]);
+    $causa = Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => '491-2025']);
+
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($suprema->codigo, '2026-11-03'));
+
+    expect(PjudMovimiento::query()->sole())
+        ->causa_id->toBe($causa->id)
+        ->tipo_coincidencia->toBe('exacta')
+        ->numero_ingreso->toBe('491-2025');
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://www.pjud.cl/ajax/Courts/getDailyStatementsXls'
+        && $request['date'] === '03-11-2026');
+    Http::assertNotSent(fn (Request $request) => $request->url() === 'https://www.pjud.cl/ajax/Courts/getDailyStatements');
+});
+
+test('la Corte Suprema se vincula automáticamente desde el catálogo', function () {
+    $this->seed(TribunalPjudSeeder::class);
+    $suprema = Juzgado::factory()->create(['nombre' => 'CORTE SUPREMA']);
+
+    app(VinculadorJuzgadosPjud::class)->vincular();
+
+    expect($suprema->refresh()->tribunal_pjud_codigo)->toBe(6050000);
+});
