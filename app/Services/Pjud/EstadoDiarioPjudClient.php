@@ -23,6 +23,8 @@ use Throwable;
  *
  *   Listado: POST https://www.pjud.cl/ajax/Courts/getDailyStatements
  *            cod_tribunal, tipo_juzgado, date (dd-mm-aaaa)
+ *   Corte Suprema: POST https://www.pjud.cl/ajax/Courts/getDailyStatementsXls
+ *            date (dd-mm-aaaa) → JSON con la lista completa del día
  *   Detalle: POST https://www.pjud.cl/ajax/Courts/getDailyStatementByCause
  *            tipo_causa, rol, era, cod_tribunal, tipo_juzgado, cod_oracle, fecha
  *
@@ -32,19 +34,59 @@ class EstadoDiarioPjudClient implements FuenteEstadoDiario
 {
     private ?CookieJar $cookies = null;
 
-    public function __construct(private readonly EstadoDiarioHtmlParser $parser) {}
+    public function __construct(
+        private readonly EstadoDiarioHtmlParser $parser,
+        private readonly EstadoDiarioSupremaParser $parserSuprema,
+    ) {}
 
     public function obtener(TribunalPjud $tribunal, CarbonImmutable $fecha): array
     {
-        return $this->parser->parse($this->descargar($tribunal, $fecha));
+        return $this->parsear($tribunal, $this->descargar($tribunal, $fecha));
     }
 
     /**
-     * Devuelve el HTML crudo del listado (útil para el comando de prueba).
+     * Convierte la respuesta del PJUD en filas: JSON para la Corte Suprema,
+     * tabla HTML para el resto de los tribunales.
+     *
+     * @return list<EntradaEstadoDiario>
+     */
+    public function parsear(TribunalPjud $tribunal, string $contenido): array
+    {
+        return $this->esCorteSuprema($tribunal)
+            ? $this->parserSuprema->parse($contenido)
+            : $this->parser->parse($contenido);
+    }
+
+    /**
+     * La Corte Suprema (tipo de juzgado 1) publica su Estado Diario en otro
+     * servicio y formato que el resto de los tribunales.
+     */
+    public function esCorteSuprema(TribunalPjud $tribunal): bool
+    {
+        return (int) $tribunal->tipo_juzgado === 1;
+    }
+
+    /**
+     * Devuelve la respuesta cruda del listado (útil para el comando de prueba).
      */
     public function descargar(TribunalPjud $tribunal, CarbonImmutable $fecha): string
     {
         $config = (array) config('pjud.estado_diario');
+
+        if ($this->esCorteSuprema($tribunal)) {
+            $url = $config['url_suprema'] ?? null;
+
+            if (blank($url)) {
+                throw new RuntimeException('Falta configurar PJUD_ESTADO_DIARIO_URL_SUPREMA en el archivo .env.');
+            }
+
+            $campoFecha = (string) (((array) ($config['campos'] ?? []))['fecha'] ?? 'date');
+
+            return $this->enviar((string) $url, [
+                $campoFecha => $fecha->format((string) ($config['formato_fecha'] ?? 'd-m-Y')),
+            ]);
+        }
+
         $url = $config['url'] ?? null;
 
         if (blank($url)) {
