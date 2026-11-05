@@ -59,6 +59,7 @@ beforeEach(function () {
     config()->set('pjud.horario', ['hora_inicio' => 8, 'hora_fin' => 18]);
     config()->set('pjud.estado_diario.segundos_entre_tribunales', 0);
     config()->set('pjud.estado_diario.dias_atras', 0);
+    config()->set('pjud.estado_diario.incluir_hoy', true);
 });
 
 test('no consulta al PJUD fuera del horario de 8 a 18 horas', function () {
@@ -178,7 +179,21 @@ test('vincula los juzgados de SLAD con el código PJUD por nombre', function () 
         ->and($resultado['sin_coincidencia']->all())->toContain('8º Juzgado del Crimen de San Miguel');
 });
 
-test('revisa también el día anterior porque el PJUD publica con desfase', function () {
+test('por defecto consulta sólo el día anterior porque el PJUD publica con desfase', function () {
+    Queue::fake();
+    config()->set('pjud.estado_diario.dias_atras', 1);
+    config()->set('pjud.estado_diario.incluir_hoy', false);
+    $this->travelTo(CarbonImmutable::parse('2026-11-05 10:00:00'));
+    $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
+
+    $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
+
+    Queue::assertPushed(ConsultarEstadoDiarioTribunal::class, 1);
+    Queue::assertPushed(ConsultarEstadoDiarioTribunal::class, fn ($job) => $job->fecha === '2026-11-04');
+});
+
+test('con PJUD_INCLUIR_HOY revisa hoy y el día anterior', function () {
     Queue::fake();
     config()->set('pjud.estado_diario.dias_atras', 1);
     $this->travelTo(CarbonImmutable::parse('2026-10-16 10:00:00'));
