@@ -116,10 +116,13 @@ return [
 
         'formato_fecha' => env('PJUD_FORMATO_FECHA', 'd-m-Y'),
 
-        // Además de hoy, se revisan los N días anteriores. El PJUD publica el
-        // Estado Diario con desfase (a media mañana suele estar el del día
-        // anterior); los movimientos repetidos no se vuelven a notificar.
+        // Se revisan los N días anteriores: el PJUD publica el Estado Diario con
+        // desfase de un día (hoy 5 se consulta el 4). Los movimientos repetidos
+        // no se vuelven a notificar.
         'dias_atras' => (int) env('PJUD_DIAS_ATRAS', 1),
+
+        // Consultar también el día actual (por defecto no: aún no está publicado).
+        'incluir_hoy' => (bool) env('PJUD_INCLUIR_HOY', false),
 
         'timeout' => (int) env('PJUD_TIMEOUT', 30),
 
