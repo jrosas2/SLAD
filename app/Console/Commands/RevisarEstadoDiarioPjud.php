@@ -50,9 +50,12 @@ class RevisarEstadoDiarioPjud extends Command
 
         $pausa = max(0, (int) config('pjud.estado_diario.segundos_entre_tribunales', 5));
 
-        // Hoy y los N días anteriores (el PJUD publica con desfase). Con --fecha, sólo esa fecha.
-        $diasAtras = filled($this->option('fecha')) ? 0 : max(0, (int) config('pjud.estado_diario.dias_atras', 1));
-        $fechas = collect(range(0, $diasAtras))->map(fn (int $dias) => $fecha->subDays($dias));
+        // Los N días anteriores (el PJUD publica con desfase de un día); hoy sólo si
+        // PJUD_INCLUIR_HOY=true. Con --fecha, sólo esa fecha.
+        $porFecha = filled($this->option('fecha'));
+        $desde = ($porFecha || (bool) config('pjud.estado_diario.incluir_hoy', false)) ? 0 : 1;
+        $hasta = $porFecha ? 0 : max($desde, (int) config('pjud.estado_diario.dias_atras', 1));
+        $fechas = collect(range($desde, $hasta))->map(fn (int $dias) => $fecha->subDays($dias));
 
         /** @var list<array{int, string}> $consultas  [código tribunal, fecha] */
         $consultas = [];
