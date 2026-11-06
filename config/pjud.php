@@ -199,5 +199,11 @@ return [
         // Si un aviso quedó sin enviar (job interrumpido, Google Calendar sin
         // conexión…), la revisión siguiente lo reintenta pasados estos minutos.
         'reintentar_pendientes_minutos' => (int) env('PJUD_REINTENTAR_PENDIENTES_MINUTOS', 30),
+
+        // Aviso de status del monitoreo en el mismo calendario: "✅ Monitoreo PJUD
+        // iniciado" a la hora de inicio y "🏁 Monitoreo PJUD finalizado" (resumen
+        // del día) PJUD_STATUS_MINUTOS_CIERRE minutos después de la hora de fin.
+        'status' => (bool) env('PJUD_STATUS', true),
+        'status_minutos_cierre' => (int) env('PJUD_STATUS_MINUTOS_CIERRE', 15),
     ],
 ];
