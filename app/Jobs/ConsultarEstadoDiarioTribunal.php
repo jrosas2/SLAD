@@ -6,6 +6,7 @@ use App\Models\PjudMovimiento;
 use App\Models\TribunalPjud;
 use App\Services\Pjud\DetectorMovimientosPjud;
 use App\Services\Pjud\FuenteEstadoDiario;
+use App\Support\Pjud\RegistroMonitoreoPjud;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -61,6 +62,8 @@ class ConsultarEstadoDiarioTribunal implements ShouldQueue
             $nuevos,
         ));
 
+        RegistroMonitoreoPjud::sumar('consultas_ok');
+
         Log::info('Estado Diario PJUD revisado.', [
             'tribunal' => $tribunal->codigo,
             'fecha' => $fecha->toDateString(),
@@ -105,6 +108,9 @@ class ConsultarEstadoDiarioTribunal implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
+        RegistroMonitoreoPjud::sumar('consultas_error');
+        RegistroMonitoreoPjud::anotarError($this->tribunalCodigo);
+
         Log::error('No fue posible consultar el Estado Diario del PJUD.', [
             'tribunal' => $this->tribunalCodigo,
             'fecha' => $this->fecha,
