@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\RevisarEstadoDiarioPjud;
+use App\Console\Commands\StatusMonitoreoPjud;
 use App\Jobs\ConsultarEstadoDiarioTribunal;
 use App\Jobs\NotificarMovimientoPjudGoogleCalendar;
 use App\Models\Causa;
@@ -14,6 +15,7 @@ use App\Services\Pjud\EstadoDiarioPjudClient;
 use App\Services\Pjud\FuenteEstadoDiario;
 use App\Services\Pjud\VinculadorJuzgadosPjud;
 use App\Support\Pjud\NormalizadorPjud;
+use App\Support\Pjud\RegistroMonitoreoPjud;
 use Carbon\CarbonImmutable;
 use Database\Seeders\TribunalPjudSeeder;
 use Illuminate\Http\Client\Request;
@@ -382,4 +384,78 @@ test('la Corte Suprema se vincula automáticamente desde el catálogo', function
     app(VinculadorJuzgadosPjud::class)->vincular();
 
     expect($suprema->refresh()->tribunal_pjud_codigo)->toBe(6050000);
+});
+
+function configurarGoogleCalendarPjud(): void
+{
+    config()->set('services.google_calendar', [
+        'enabled' => true,
+        'calendar_id' => 'slad@empresa.cl',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'refresh_token' => 'refresh-token',
+        'event_duration_minutes' => 30,
+    ]);
+    Http::fake([
+        'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'access-token']),
+        'https://www.googleapis.com/calendar/v3/calendars/*' => Http::response(['id' => 'evento-status-1']),
+    ]);
+}
+
+test('avisa en Google Calendar el inicio del monitoreo con la fecha que se consulta', function () {
+    config()->set('pjud.estado_diario.incluir_hoy', false);
+    config()->set('pjud.estado_diario.dias_atras', 1);
+    configurarGoogleCalendarPjud();
+    $this->travelTo(CarbonImmutable::parse('2026-11-06 08:00:00'));
+    $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
+
+    $this->artisan('pjud:status-monitoreo inicio')->assertSuccessful();
+
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/events')
+        && $request['summary'] === '✅ Monitoreo PJUD iniciado'
+        && str_contains($request['description'], 'Estado Diario que se consulta: 05-11-2026')
+        && str_contains($request['description'], 'Tribunales en monitoreo: 1'));
+});
+
+test('el cierre resume el día y advierte si no se ejecutó ninguna revisión', function () {
+    configurarGoogleCalendarPjud();
+    $this->travelTo(CarbonImmutable::parse('2026-11-06 18:15:00'));
+
+    $this->artisan('pjud:status-monitoreo cierre')->assertSuccessful();
+
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/events')
+        && $request['summary'] === '⚠️ Monitoreo PJUD finalizado con observaciones'
+        && str_contains($request['description'], 'Revisiones ejecutadas: 0')
+        && str_contains($request['description'], 'No se ejecutó ninguna revisión hoy'));
+});
+
+test('el cierre cuenta las revisiones y consultas del día', function () {
+    Queue::fake();
+    configurarGoogleCalendarPjud();
+    $this->travelTo(CarbonImmutable::parse('2026-11-06 10:00:00'));
+    $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
+
+    $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
+    $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
+    RegistroMonitoreoPjud::sumar('consultas_ok', 2);
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-06 18:15:00'));
+    $this->artisan('pjud:status-monitoreo cierre')->assertSuccessful();
+
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/events')
+        && $request['summary'] === '🏁 Monitoreo PJUD finalizado'
+        && str_contains($request['description'], 'Revisiones ejecutadas: 2')
+        && str_contains($request['description'], 'Consultas a tribunales correctas: 2')
+        && str_contains($request['description'], 'Consultas con error: 0'));
+});
+
+test('el status de inicio y cierre queda programado según el horario', function () {
+    config()->set('pjud.horario.hora_inicio', 8);
+    config()->set('pjud.horario.hora_fin', 18);
+    config()->set('pjud.notificacion.status_minutos_cierre', 15);
+
+    expect(StatusMonitoreoPjud::horaInicio())->toBe('08:00')
+        ->and(StatusMonitoreoPjud::horaCierre())->toBe('18:15');
 });
