@@ -64,6 +64,53 @@ class GoogleCalendarService
         return $eventId;
     }
 
+    /**
+     * Crea el evento de status del monitoreo PJUD (inicio o cierre del día).
+     * Devuelve el id del evento, o null si Google Calendar no está configurado.
+     */
+    public function crearEventoStatusMonitoreoPjud(string $titulo, string $descripcion): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        $config = (array) config('pjud.notificacion');
+        $inicio = now()->addMinutes(max(1, (int) ($config['minutos_hasta_evento'] ?? 2)));
+        $alerta = max(0, (int) ($config['alerta_minutos_antes'] ?? 1));
+
+        $attendees = collect((array) ($config['correos_adicionales'] ?? []))
+            ->map(fn (string $correo) => mb_strtolower(trim($correo)))
+            ->filter(fn (string $correo) => filter_var($correo, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique()
+            ->map(fn (string $correo) => ['email' => $correo])
+            ->values()
+            ->all();
+
+        $eventId = $this->request()
+            ->post($this->eventsUrl(), [
+                'summary' => $titulo,
+                'description' => $descripcion,
+                'start' => ['dateTime' => $inicio->toRfc3339String(), 'timeZone' => config('app.timezone')],
+                'end' => ['dateTime' => $inicio->addMinutes(15)->toRfc3339String(), 'timeZone' => config('app.timezone')],
+                'attendees' => $attendees,
+                'reminders' => [
+                    'useDefault' => false,
+                    'overrides' => [
+                        ['method' => 'email', 'minutes' => $alerta],
+                        ['method' => 'popup', 'minutes' => $alerta],
+                    ],
+                ],
+            ])
+            ->throw()
+            ->json('id');
+
+        if (! is_string($eventId) || blank($eventId)) {
+            throw new RuntimeException('Google Calendar no devolvió el identificador del evento.');
+        }
+
+        return $eventId;
+    }
+
     /** @return array<string, mixed> */
     private function actividadJudicialPayload(PjudMovimiento $movimiento): array
     {

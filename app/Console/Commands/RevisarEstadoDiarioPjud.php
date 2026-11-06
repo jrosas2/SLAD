@@ -4,10 +4,12 @@ namespace App\Console\Commands;
 
 use App\Jobs\ConsultarEstadoDiarioTribunal;
 use App\Models\TribunalPjud;
+use App\Support\Pjud\RegistroMonitoreoPjud;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 
 #[Signature('pjud:revisar-estado-diario
     {--fecha= : Fecha del Estado Diario (AAAA-MM-DD). Por defecto, hoy}
@@ -50,12 +52,12 @@ class RevisarEstadoDiarioPjud extends Command
 
         $pausa = max(0, (int) config('pjud.estado_diario.segundos_entre_tribunales', 5));
 
-        // Los N días anteriores (el PJUD publica con desfase de un día); hoy sólo si
-        // PJUD_INCLUIR_HOY=true. Con --fecha, sólo esa fecha.
-        $porFecha = filled($this->option('fecha'));
-        $desde = ($porFecha || (bool) config('pjud.estado_diario.incluir_hoy', false)) ? 0 : 1;
-        $hasta = $porFecha ? 0 : max($desde, (int) config('pjud.estado_diario.dias_atras', 1));
-        $fechas = collect(range($desde, $hasta))->map(fn (int $dias) => $fecha->subDays($dias));
+        // Con --fecha, sólo esa fecha; si no, los días anteriores (desfase del PJUD).
+        $fechas = filled($this->option('fecha')) ? collect([$fecha]) : self::fechasAConsultar($fecha);
+
+        if (! filled($this->option('fecha'))) {
+            RegistroMonitoreoPjud::sumar('revisiones');
+        }
 
         /** @var list<array{int, string}> $consultas  [código tribunal, fecha] */
         $consultas = [];
@@ -84,6 +86,21 @@ class RevisarEstadoDiarioPjud extends Command
         $this->info("{$tribunales->count()} tribunal(es) en revisión · fechas: ".$fechas->map->format('d-m-Y')->implode(', ').'.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Fechas de Estado Diario que consulta la revisión automática de un día: los
+     * PJUD_DIAS_ATRAS días anteriores (el PJUD publica con desfase de un día);
+     * el día actual sólo si PJUD_INCLUIR_HOY=true.
+     *
+     * @return Collection<int, CarbonImmutable>
+     */
+    public static function fechasAConsultar(CarbonImmutable $hoy): Collection
+    {
+        $desde = (bool) config('pjud.estado_diario.incluir_hoy', false) ? 0 : 1;
+        $hasta = max($desde, (int) config('pjud.estado_diario.dias_atras', 1));
+
+        return collect(range($desde, $hasta))->map(fn (int $dias) => $hoy->startOfDay()->subDays($dias))->values();
     }
 
     /**
