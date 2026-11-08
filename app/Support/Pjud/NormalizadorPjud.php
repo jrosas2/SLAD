@@ -133,9 +133,10 @@ final class NormalizadorPjud
 
         // Número seguido del año (guion, barra o espacios entre ambos). Si hay
         // varios, el último: el prefijo puede traer otros números.
-        if (preg_match_all('/(?<!\d)0*(\d{1,7})(?:\s*[-\/]\s*|\s+)((?:19|20)\d{2})(?!\d)/', $texto, $coincidencias, PREG_SET_ORDER) > 0) {
-            $ultima = $coincidencias[array_key_last($coincidencias)];
+        preg_match_all('/(?<!\d)0*(\d{1,7})(?:\s*[-\/]\s*|\s+)((?:19|20)\d{2})(?!\d)/', $texto, $coincidencias, PREG_SET_ORDER);
+        $ultima = array_pop($coincidencias);
 
+        if ($ultima !== null) {
             return ['numero' => $ultima[1], 'anio' => $ultima[2]];
         }
 
