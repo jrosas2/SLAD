@@ -218,10 +218,24 @@ test('crea el evento ⚖️ Causa en tabla el día de la vista, con alerta e inv
     $corte = cortePjud(4901014, 'CORTE DE APELACIONES DE TEMUCO');
     $responsable = User::factory()->abogado()->create(['email' => 'abogado@empresa.cl']);
     $causa = causaEnCorte($corte, '1436-2026', 'VIGENTE', ['responsable_id' => $responsable->id]);
-    Queue::fake([NotificarProgramacionPjudGoogleCalendar::class]);
-    fuenteProgramacionFalsa([entradaTabla('1436 - 2026', '2026-11-10', '2')]);
-    dispatch_sync(new ConsultarProgramacionCorte($corte->codigo));
-    $programacion = PjudProgramacion::query()->firstOrFail();
+    // Sin Queue::fake: dispatch_sync debe ejecutar el aviso de verdad.
+    $programacion = PjudProgramacion::query()->create([
+        'causa_id' => $causa->id,
+        'tribunal_pjud_codigo' => $corte->codigo,
+        'tribunal_nombre' => $corte->nombre,
+        'tipo_tabla_codigo' => '3',
+        'tipo_tabla' => 'ordinaria',
+        'fecha_vista' => '2026-11-10',
+        'sala_numero' => '2',
+        'sala' => 'SEGUNDA',
+        'relator' => 'RELATOR DE PRUEBA',
+        'numero_orden' => 4,
+        'numero_ingreso' => '1436 - 2026',
+        'tipo_coincidencia' => 'exacta',
+        'caratulado' => 'PÉREZ CON FISCO',
+        'huella' => hash('sha256', 'prueba-evento-tabla'),
+        'detectada_en' => now(),
+    ]);
 
     dispatch_sync(new NotificarProgramacionPjudGoogleCalendar($programacion->id));
 
