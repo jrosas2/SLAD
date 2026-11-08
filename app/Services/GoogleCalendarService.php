@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\EstadoRecordatorio;
 use App\Models\GoogleCalendarConnection;
 use App\Models\PjudMovimiento;
+use App\Models\PjudProgramacion;
 use App\Models\Recordatorio;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -65,6 +66,29 @@ class GoogleCalendarService
     }
 
     /**
+     * Crea el evento "⚖️ Causa en tabla" el día de la vista de una causa
+     * detectada en la programación de salas de una Corte. Devuelve el id del
+     * evento, o null si Google Calendar no está configurado.
+     */
+    public function crearEventoProgramacionPjud(PjudProgramacion $programacion): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        $eventId = $this->request()
+            ->post($this->eventsUrl(), $this->programacionPayload($programacion))
+            ->throw()
+            ->json('id');
+
+        if (! is_string($eventId) || blank($eventId)) {
+            throw new RuntimeException('Google Calendar no devolvió el identificador del evento.');
+        }
+
+        return $eventId;
+    }
+
+    /**
      * Crea el evento de status del monitoreo PJUD (inicio o cierre del día).
      * Devuelve el id del evento, o null si Google Calendar no está configurado.
      */
@@ -109,6 +133,77 @@ class GoogleCalendarService
         }
 
         return $eventId;
+    }
+
+    /** @return array<string, mixed> */
+    private function programacionPayload(PjudProgramacion $programacion): array
+    {
+        $programacion->loadMissing(['causa.responsable:id,name,email', 'causa.juzgado:id,nombre']);
+        $causa = $programacion->causa;
+        $config = (array) config('pjud.programacion.notificacion');
+
+        // La tabla no informa la hora de la vista: el evento va a la hora configurada.
+        [$hora, $minuto] = array_map('intval', array_pad(explode(':', (string) ($config['hora_evento'] ?? '09:00')), 2, 0));
+        $fechaVista = CarbonImmutable::parse($programacion->fecha_vista);
+        $inicio = CarbonImmutable::parse($fechaVista->toDateString(), config('app.timezone'))
+            ->setTime(max(0, min(23, $hora)), max(0, min(59, $minuto)));
+        $fin = $inicio->addMinutes(max(1, (int) ($config['duracion_minutos'] ?? 60)));
+        $alerta = max(0, min(40320, (int) ($config['alerta_minutos_antes'] ?? 1440)));
+
+        $correos = (array) ($config['correos_adicionales'] ?? []);
+        if (($config['invitar_responsable'] ?? true) && filled($causa?->responsable?->email)) {
+            array_unshift($correos, $causa->responsable->email);
+        }
+
+        $attendees = collect($correos)
+            ->map(fn (string $correo) => mb_strtolower(trim($correo)))
+            ->filter(fn (string $correo) => filter_var($correo, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique()
+            ->map(fn (string $correo) => ['email' => $correo])
+            ->values()
+            ->all();
+
+        // Si la causa ya estaba en otra tabla (cambió de fecha o de sala), se informa.
+        $anteriores = PjudProgramacion::query()
+            ->where('causa_id', $programacion->causa_id)
+            ->where('id', '!=', $programacion->id)
+            ->where('tribunal_pjud_codigo', $programacion->tribunal_pjud_codigo)
+            ->orderByDesc('fecha_vista')
+            ->limit(3)
+            ->get(['fecha_vista', 'sala'])
+            ->map(fn (PjudProgramacion $anterior) => CarbonImmutable::parse($anterior->fecha_vista)->format('d-m-Y').' · Sala '.$anterior->sala)
+            ->implode('; ');
+
+        $sala = "Sala {$programacion->sala}";
+
+        return [
+            'summary' => trim((string) ($config['asunto'] ?? '⚖️ Causa en tabla'))." · {$programacion->numero_ingreso} · {$sala}",
+            'description' => collect([
+                "N° de ingreso: {$programacion->numero_ingreso}",
+                $programacion->tipo_coincidencia === 'parcial'
+                    ? "⚠️ Coincidencia parcial: en SLAD figura \"{$causa?->numero_causa}\" y el PJUD informa \"{$programacion->numero_ingreso}\". Verifique que sea la misma causa."
+                    : null,
+                "Corte: {$programacion->tribunal_nombre}",
+                'Fecha de la vista: '.$fechaVista->format('d-m-Y'),
+                "{$sala} · Tabla {$programacion->tipo_tabla}".($programacion->numero_orden !== null ? " · N° {$programacion->numero_orden} en la tabla" : ''),
+                filled($programacion->relator) ? "Relator: {$programacion->relator}" : null,
+                $causa !== null ? "Causa SLAD: {$causa->nombre}" : null,
+                filled($programacion->caratulado) ? "Carátula PJUD: {$programacion->caratulado}" : null,
+                $anteriores !== '' ? "Programación anterior: {$anteriores}" : null,
+                'La hora del evento es referencial: la tabla del PJUD no informa la hora de la vista. Constitución de sala provisional y sujeta a revisión el día de la vista (art. 90 COT).',
+                $causa !== null ? 'Ver en SLAD: '.route('causas.show', $causa) : null,
+            ])->filter()->implode("\n"),
+            'start' => ['dateTime' => $inicio->toRfc3339String(), 'timeZone' => config('app.timezone')],
+            'end' => ['dateTime' => $fin->toRfc3339String(), 'timeZone' => config('app.timezone')],
+            'attendees' => $attendees,
+            'reminders' => [
+                'useDefault' => false,
+                'overrides' => [
+                    ['method' => 'email', 'minutes' => $alerta],
+                    ['method' => 'popup', 'minutes' => $alerta],
+                ],
+            ],
+        ];
     }
 
     /** @return array<string, mixed> */

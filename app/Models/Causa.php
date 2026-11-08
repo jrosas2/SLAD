@@ -115,18 +115,27 @@ class Causa extends Model
         return $this->hasMany(PjudMovimiento::class)->orderByDesc('fecha_estado_diario')->orderByDesc('id');
     }
 
+    /** @return HasMany<PjudProgramacion, $this> */
+    public function pjudProgramaciones(): HasMany
+    {
+        return $this->hasMany(PjudProgramacion::class)->orderByDesc('fecha_vista')->orderByDesc('id');
+    }
+
     /**
      * Causas que el monitoreo PJUD debe revisar: con número de ingreso y en un
      * estado de causa consultable (por defecto sólo VIGENTE; ver config/pjud.php).
      *
      * @param  Builder<Causa>  $query
+     * @param  array<array-key, mixed>|null  $estadosCausa
      * @return Builder<Causa>
      */
-    public function scopeConsultablesPjud(Builder $query): Builder
+    public function scopeConsultablesPjud(Builder $query, ?array $estadosCausa = null): Builder
     {
+        // Sin estados explícitos se usan los del Estado Diario (PJUD_ESTADOS_CAUSA);
+        // la programación de salas pasa los suyos (PJUD_PROGRAMACION_ESTADOS_CAUSA).
         $estados = array_values(array_filter(array_map(
             fn ($estado) => mb_strtoupper(trim((string) $estado)),
-            (array) config('pjud.estados_causa_consultables', ['VIGENTE']),
+            $estadosCausa ?? (array) config('pjud.estados_causa_consultables', ['VIGENTE']),
         )));
 
         return $query

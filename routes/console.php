@@ -1,7 +1,9 @@
 <?php
 
 use App\Console\Commands\RevisarEstadoDiarioPjud;
+use App\Console\Commands\RevisarProgramacionPjud;
 use App\Console\Commands\StatusMonitoreoPjud;
+use App\Console\Commands\StatusProgramacionPjud;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -29,3 +31,19 @@ Schedule::command('pjud:status-monitoreo inicio')
 Schedule::command('pjud:status-monitoreo cierre')
     ->dailyAt(StatusMonitoreoPjud::horaCierre())
     ->when(fn () => (bool) config('pjud.notificacion.status', true));
+
+// Programación de salas (tablas de las Cortes): horario y frecuencia propios
+// (PJUD_PROGRAMACION_*), porque las tablas se publican en otro horario que el
+// Estado Diario. Las Cortes salen de las causas vigentes de SLAD.
+Schedule::command('pjud:revisar-programacion')
+    ->cron(RevisarProgramacionPjud::expresionCron())
+    ->between(StatusProgramacionPjud::horaInicio(), sprintf('%02d:00', config('pjud.programacion.horario.hora_fin', 20)))
+    ->withoutOverlapping();
+
+Schedule::command('pjud:status-programacion inicio')
+    ->dailyAt(StatusProgramacionPjud::horaInicio())
+    ->when(fn () => (bool) config('pjud.programacion.notificacion.status', true));
+
+Schedule::command('pjud:status-programacion cierre')
+    ->dailyAt(StatusProgramacionPjud::horaCierre())
+    ->when(fn () => (bool) config('pjud.programacion.notificacion.status', true));
