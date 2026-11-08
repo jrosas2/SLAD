@@ -111,25 +111,28 @@ test('calza el número de ingreso ignorando espacios y no duplica la misma vista
     $corte = cortePjud(4901014, 'CORTE DE APELACIONES DE TEMUCO');
     $conEspacios = causaEnCorte($corte, '1436 -2026');
     $sinEspacios = causaEnCorte($corte, 'Rol 183-2026');
+    $conMateria = causaEnCorte($corte, 'Civil-2272-2025');
     causaEnCorte($corte, '9999-2026');
 
     fuenteProgramacionFalsa([
         entradaTabla('1436 - 2026'),
         entradaTabla('183 – 2026', '2026-11-10', '2'),
+        entradaTabla('(Laboral) 2.272 - 2025'), // el PJUD antepone otra materia: calza por número y año
         entradaTabla('183 - 2025'), // mismo número, otro año: no calza
     ]);
 
     dispatch_sync(new ConsultarProgramacionCorte($corte->codigo));
     dispatch_sync(new ConsultarProgramacionCorte($corte->codigo)); // siguiente revisión
 
-    expect(PjudProgramacion::query()->count())->toBe(2)
+    expect(PjudProgramacion::query()->count())->toBe(3)
+        ->and(PjudProgramacion::query()->where('causa_id', $conMateria->id)->value('tipo_coincidencia'))->toBe('exacta')
         ->and(PjudProgramacion::query()->where('causa_id', $conEspacios->id)->first())
         ->fecha_vista->toDateString()->toBe('2026-11-09')
         ->sala->toBe('PRIMERA')
         ->tipo_coincidencia->toBe('exacta')
         ->detectada_en->not->toBeNull()
         ->and(PjudProgramacion::query()->where('causa_id', $sinEspacios->id)->value('sala_numero'))->toBe('2');
-    Queue::assertPushed(NotificarProgramacionPjudGoogleCalendar::class, 2);
+    Queue::assertPushed(NotificarProgramacionPjudGoogleCalendar::class, 3);
 });
 
 test('si la causa cambia de fecha o de sala, se avisa de nuevo', function () {
@@ -143,7 +146,8 @@ test('si la causa cambia de fecha o de sala, se avisa de nuevo', function () {
     fuenteProgramacionFalsa([entradaTabla('1436 - 2026', '2026-11-12', '2')]);
     dispatch_sync(new ConsultarProgramacionCorte($corte->codigo));
 
-    expect(PjudProgramacion::query()->count())->toBe(2);
+    expect(PjudProgramacion::query()->count())->toBe(3)
+        ->and(PjudProgramacion::query()->where('causa_id', $conMateria->id)->value('tipo_coincidencia'))->toBe('exacta');
     Queue::assertPushed(NotificarProgramacionPjudGoogleCalendar::class, 2);
 });
 
