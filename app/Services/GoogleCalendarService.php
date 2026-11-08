@@ -144,7 +144,8 @@ class GoogleCalendarService
 
         // La tabla no informa la hora de la vista: el evento va a la hora configurada.
         [$hora, $minuto] = array_map('intval', array_pad(explode(':', (string) ($config['hora_evento'] ?? '09:00')), 2, 0));
-        $inicio = CarbonImmutable::parse($programacion->fecha_vista->toDateString(), config('app.timezone'))
+        $fechaVista = CarbonImmutable::parse($programacion->fecha_vista);
+        $inicio = CarbonImmutable::parse($fechaVista->toDateString(), config('app.timezone'))
             ->setTime(max(0, min(23, $hora)), max(0, min(59, $minuto)));
         $fin = $inicio->addMinutes(max(1, (int) ($config['duracion_minutos'] ?? 60)));
         $alerta = max(0, min(40320, (int) ($config['alerta_minutos_antes'] ?? 1440)));
@@ -170,7 +171,7 @@ class GoogleCalendarService
             ->orderByDesc('fecha_vista')
             ->limit(3)
             ->get(['fecha_vista', 'sala'])
-            ->map(fn (PjudProgramacion $anterior) => $anterior->fecha_vista->format('d-m-Y').' · Sala '.$anterior->sala)
+            ->map(fn (PjudProgramacion $anterior) => CarbonImmutable::parse($anterior->fecha_vista)->format('d-m-Y').' · Sala '.$anterior->sala)
             ->implode('; ');
 
         $sala = "Sala {$programacion->sala}";
@@ -183,7 +184,7 @@ class GoogleCalendarService
                     ? "⚠️ Coincidencia parcial: en SLAD figura \"{$causa?->numero_causa}\" y el PJUD informa \"{$programacion->numero_ingreso}\". Verifique que sea la misma causa."
                     : null,
                 "Corte: {$programacion->tribunal_nombre}",
-                'Fecha de la vista: '.$programacion->fecha_vista->format('d-m-Y'),
+                'Fecha de la vista: '.$fechaVista->format('d-m-Y'),
                 "{$sala} · Tabla {$programacion->tipo_tabla}".($programacion->numero_orden !== null ? " · N° {$programacion->numero_orden} en la tabla" : ''),
                 filled($programacion->relator) ? "Relator: {$programacion->relator}" : null,
                 $causa !== null ? "Causa SLAD: {$causa->nombre}" : null,
