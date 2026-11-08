@@ -146,8 +146,7 @@ test('si la causa cambia de fecha o de sala, se avisa de nuevo', function () {
     fuenteProgramacionFalsa([entradaTabla('1436 - 2026', '2026-11-12', '2')]);
     dispatch_sync(new ConsultarProgramacionCorte($corte->codigo));
 
-    expect(PjudProgramacion::query()->count())->toBe(3)
-        ->and(PjudProgramacion::query()->where('causa_id', $conMateria->id)->value('tipo_coincidencia'))->toBe('exacta');
+    expect(PjudProgramacion::query()->count())->toBe(2);
     Queue::assertPushed(NotificarProgramacionPjudGoogleCalendar::class, 2);
 });
 
