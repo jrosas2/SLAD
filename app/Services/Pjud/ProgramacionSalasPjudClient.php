@@ -133,10 +133,11 @@ class ProgramacionSalasPjudClient implements FuenteProgramacionSalas
             throw new RuntimeException("Falta configurar la URL pjud.programacion.{$claveUrl} (PJUD_PROGRAMACION_URL_*).");
         }
 
-        $respuesta = $this->cliente()->asMultipart()->post((string) $url, collect($datos)
-            ->map(fn ($valor, $campo) => ['name' => $campo, 'contents' => (string) $valor])
-            ->values()
-            ->all());
+        // Multipart, igual que el FormData que envía la página del PJUD.
+        $respuesta = $this->cliente()->asMultipart()->post((string) $url, array_map(
+            fn ($valor): string => (string) $valor,
+            $datos,
+        ));
 
         $respuesta->throw();
 

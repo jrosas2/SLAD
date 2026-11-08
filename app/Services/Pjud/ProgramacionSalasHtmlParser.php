@@ -163,7 +163,13 @@ class ProgramacionSalasHtmlParser
     {
         $mapa = [];
 
-        foreach ($xpath->query('.//th', $tabla) ?: [] as $indice => $th) {
+        $indice = -1;
+        foreach ($xpath->query('.//th', $tabla) ?: [] as $th) {
+            if (! $th instanceof DOMElement) {
+                continue;
+            }
+
+            $indice++;
             $titulo = $this->comparable($th->textContent);
 
             foreach ($alias as $campo => $nombres) {
@@ -191,6 +197,10 @@ class ProgramacionSalasHtmlParser
         $filas = [];
 
         foreach ($xpath->query('.//tr[td]', $tabla) ?: [] as $tr) {
+            if (! $tr instanceof DOMElement) {
+                continue;
+            }
+
             $celdas = [];
             foreach ($xpath->query('./td', $tr) ?: [] as $td) {
                 if ($td instanceof DOMElement) {
