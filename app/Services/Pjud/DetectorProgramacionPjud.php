@@ -11,11 +11,12 @@ use Illuminate\Support\Collection;
 /**
  * Cruza la programación de salas de una Corte con las causas de SLAD.
  *
- * El número de ingreso del PJUD ("1436 - 2026", con espacios) y el de SLAD
- * ("1436-2026", "1436 -2026", "Rol 1436-2026"…) se comparan con
- * NormalizadorPjud, que ignora espacios, guiones largos, prefijos y ceros a
- * la izquierda. El tribunal es siempre la Corte consultada: sólo se cruzan
- * las causas cuyo juzgado está vinculado a ese código PJUD.
+ * El PJUD no tiene un formato fijo para el ingreso de las Cortes ("1436 - 2026",
+ * "1436-2026", "Rol 1436-2026", "(Laboral) 1436 - 2026"…): sólo se comparan
+ * el NÚMERO y el AÑO (NormalizadorPjud::numeroYAnio), ignorando espacios,
+ * guiones, prefijos, separador de miles y ceros a la izquierda. El tribunal
+ * es siempre la Corte consultada: sólo se cruzan las causas cuyo juzgado está
+ * vinculado a ese código PJUD.
  */
 class DetectorProgramacionPjud
 {
@@ -39,14 +40,14 @@ class DetectorProgramacionPjud
         $nuevas = [];
 
         foreach ($entradas as $entrada) {
-            $pjud = NormalizadorPjud::componentes($entrada->numeroIngreso);
+            $pjud = NormalizadorPjud::numeroYAnio($entrada->numeroIngreso);
 
             if ($pjud === null || ! $causasPorNumero->has($pjud['numero'])) {
                 continue;
             }
 
             foreach ($causasPorNumero->get($pjud['numero']) as [$causa, $slad]) {
-                $tipo = NormalizadorPjud::coincidencia($pjud, $slad);
+                $tipo = NormalizadorPjud::coincidenciaNumeroAnio($pjud, $slad);
 
                 if ($tipo === null || ($tipo === NormalizadorPjud::COINCIDENCIA_PARCIAL && ! $permitirParcial)) {
                     continue;
@@ -58,7 +59,7 @@ class DetectorProgramacionPjud
                     $entrada->tipoTablaCodigo,
                     $entrada->fecha->toDateString(),
                     $entrada->salaNumero,
-                    NormalizadorPjud::numeroIngreso($entrada->numeroIngreso),
+                    $pjud['numero'].'-'.($pjud['anio'] ?? ''),
                 ]));
 
                 $programacion = PjudProgramacion::query()->createOrFirst(['huella' => $huella], [
@@ -88,9 +89,9 @@ class DetectorProgramacionPjud
     }
 
     /**
-     * Causas consultables de la Corte, agrupadas por número (sin letra ni año).
+     * Causas consultables de la Corte, agrupadas por número (sin prefijo ni año).
      *
-     * @return Collection<array-key, Collection<int, array{0: Causa, 1: array{letra: ?string, numero: string, anio: ?string}}>>
+     * @return Collection<array-key, Collection<int, array{0: Causa, 1: array{numero: string, anio: ?string}}>>
      */
     private function causasDeLaCorte(TribunalPjud $corte): Collection
     {
@@ -103,7 +104,7 @@ class DetectorProgramacionPjud
         $porNumero = collect();
 
         foreach ($causas as $causa) {
-            $componentes = NormalizadorPjud::componentes($causa->numero_causa);
+            $componentes = NormalizadorPjud::numeroYAnio($causa->numero_causa);
 
             if ($componentes !== null) {
                 $porNumero->put($componentes['numero'], $porNumero->get($componentes['numero'], collect())->push([$causa, $componentes]));
