@@ -206,4 +206,87 @@ return [
         'status' => (bool) env('PJUD_STATUS', true),
         'status_minutos_cierre' => (int) env('PJUD_STATUS_MINUTOS_CIERRE', 15),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Programación de causas (tablas de las Cortes)
+    |--------------------------------------------------------------------------
+    |
+    | Segundo monitoreo, independiente del Estado Diario: revisa las tablas que
+    | publican las Cortes en "Programación de Salas" y avisa en Google Calendar
+    | cuando una causa de SLAD queda en tabla, con el evento en el DÍA DE LA
+    | VISTA. Sólo las Cortes publican tablas (17 Cortes de Apelaciones + Corte
+    | Suprema); los juzgados de primera instancia no.
+    |
+    | Las Cortes que se consultan NO se configuran: salen de las causas de SLAD
+    | (estado en PJUD_PROGRAMACION_ESTADOS_CAUSA) cuyo juzgado está vinculado a
+    | un código PJUD de Corte (tipo de juzgado 1 = Suprema, 2 = Apelaciones).
+    | Una causa nueva en otra Corte del país entra sola al monitoreo.
+    |
+    |   Tipos de tabla: POST /ajax/Courts/getTypeTables/
+    |                   codTribunal, tipoJuzgado, condicion (CAPEL | COSUP) → JSON
+    |   Salas y días:   POST /ajax/Courts/getDataTypeTableSelectedML/
+    |                   codTypeTable, codTribunal, condicion → HTML Fecha | Sala | Relator
+    |   Causas en tabla: POST /ajax/Courts/constitutionOfRoomML/
+    |                   numSala, codCorte, tipoTabla, fecha (dd/mm/aaaa), nomsala,
+    |                   condicion → HTML N° | Causa | Ingreso ("1436 - 2026")
+    |
+    | Use `php artisan pjud:probar-programacion {codigo_corte}` para validar.
+    |
+    */
+    'programacion' => [
+        'enabled' => (bool) env('PJUD_PROGRAMACION_ENABLED', false),
+
+        // Estados de causa que se consultan (separados por coma).
+        'estados_causa_consultables' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('PJUD_PROGRAMACION_ESTADOS_CAUSA', 'VIGENTE')),
+        ))),
+
+        // Avisar números incompletos en SLAD (sin año), con nota para verificar.
+        'coincidencia_parcial' => (bool) env('PJUD_PROGRAMACION_COINCIDENCIA_PARCIAL', true),
+
+        // Horario propio: las tablas se publican en otro horario que el Estado Diario.
+        'horario' => [
+            'hora_inicio' => (int) env('PJUD_PROGRAMACION_HORA_INICIO', 14),
+            'hora_fin' => (int) env('PJUD_PROGRAMACION_HORA_FIN', 20),
+            'frecuencia_minutos' => (int) env('PJUD_PROGRAMACION_FRECUENCIA_MINUTOS', 60),
+        ],
+
+        'url_sesion' => env('PJUD_PROGRAMACION_URL_SESION', 'https://www.pjud.cl/tribunales/corte-de-apelaciones'),
+        'url_tipos_tabla' => env('PJUD_PROGRAMACION_URL_TIPOS', 'https://www.pjud.cl/ajax/Courts/getTypeTables/'),
+        'url_salas' => env('PJUD_PROGRAMACION_URL_SALAS', 'https://www.pjud.cl/ajax/Courts/getDataTypeTableSelectedML/'),
+        'url_constitucion' => env('PJUD_PROGRAMACION_URL_CONSTITUCION', 'https://www.pjud.cl/ajax/Courts/constitutionOfRoomML/'),
+
+        // Segundos entre una consulta y la siguiente dentro de una Corte (cortesía con el PJUD).
+        'segundos_entre_consultas' => (int) env('PJUD_PROGRAMACION_SEGUNDOS_ENTRE_CONSULTAS', 1),
+
+        // Segundos entre una Corte y la siguiente.
+        'segundos_entre_cortes' => (int) env('PJUD_PROGRAMACION_SEGUNDOS_ENTRE_CORTES', 10),
+
+        'notificacion' => [
+            'asunto' => env('PJUD_PROGRAMACION_ASUNTO', '⚖️ Causa en tabla'),
+
+            // El evento se crea el día de la vista a esta hora (HH:MM), porque
+            // la tabla no informa la hora exacta de la audiencia.
+            'hora_evento' => env('PJUD_PROGRAMACION_HORA_EVENTO', '09:00'),
+            'duracion_minutos' => (int) env('PJUD_PROGRAMACION_DURACION_MINUTOS', 60),
+
+            // Anticipación de la alerta (correo + emergente). 1440 = un día antes.
+            'alerta_minutos_antes' => (int) env('PJUD_PROGRAMACION_MINUTOS_ANTES', 1440),
+
+            'invitar_responsable' => (bool) env('PJUD_PROGRAMACION_INVITAR_RESPONSABLE', true),
+
+            'correos_adicionales' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('PJUD_PROGRAMACION_CORREOS', '')),
+            ))),
+
+            'reintentar_pendientes_minutos' => (int) env('PJUD_PROGRAMACION_REINTENTAR_PENDIENTES_MINUTOS', 30),
+
+            // Avisos de status "✅ Programación PJUD iniciada" / "🏁 … finalizada".
+            'status' => (bool) env('PJUD_PROGRAMACION_STATUS', true),
+            'status_minutos_cierre' => (int) env('PJUD_PROGRAMACION_STATUS_MINUTOS_CIERRE', 15),
+        ],
+    ],
 ];
