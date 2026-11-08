@@ -126,7 +126,7 @@ class Causa extends Model
      * estado de causa consultable (por defecto sólo VIGENTE; ver config/pjud.php).
      *
      * @param  Builder<Causa>  $query
-     * @param  list<string>|null  $estadosCausa
+     * @param  array<array-key, mixed>|null  $estadosCausa
      * @return Builder<Causa>
      */
     public function scopeConsultablesPjud(Builder $query, ?array $estadosCausa = null): Builder
