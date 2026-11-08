@@ -46,3 +46,30 @@ test('reconoce el número de ingreso completo e incompleto registrado en SLAD', 
     'otro año' => ['C-5329-2025', 'C-5329-2024', null],
     'otro número' => ['C-5329-2025', 'C-532-2025', null],
 ]);
+
+test('en las Cortes sólo importan el número y el año del ingreso', function (string $pjud, array $esperado) {
+    expect(NormalizadorPjud::numeroYAnio($pjud))->toBe($esperado);
+})->with([
+    'con espacios' => ['1436 - 2026', ['numero' => '1436', 'anio' => '2026']],
+    'sin espacios' => ['1436-2026', ['numero' => '1436', 'anio' => '2026']],
+    'espacio a un lado' => ['1436 -2026', ['numero' => '1436', 'anio' => '2026']],
+    'con Rol' => ['Rol 1436-2026', ['numero' => '1436', 'anio' => '2026']],
+    'materia entre paréntesis' => ['(Laboral) 1436 - 2026', ['numero' => '1436', 'anio' => '2026']],
+    'materia con guion' => ['Laboral-1436-2026', ['numero' => '1436', 'anio' => '2026']],
+    'separador de miles y guion largo' => ['N° 1.436 – 2026', ['numero' => '1436', 'anio' => '2026']],
+    'con barra' => ['1436/2026', ['numero' => '1436', 'anio' => '2026']],
+    'ceros a la izquierda' => ['Ingreso 01436-2026', ['numero' => '1436', 'anio' => '2026']],
+    'sólo espacios entre número y año' => ['1436 2026', ['numero' => '1436', 'anio' => '2026']],
+    'sin año' => ['1436', ['numero' => '1436', 'anio' => null]],
+]);
+
+test('el número y año de Corte calza aunque cambie el prefijo', function (string $pjud, string $slad, ?string $esperado) {
+    expect(NormalizadorPjud::coincidenciaNumeroAnio(NormalizadorPjud::numeroYAnio($pjud), NormalizadorPjud::numeroYAnio($slad)))->toBe($esperado);
+})->with([
+    ['(Laboral) 1436 - 2026', '1436-2026', 'exacta'],
+    ['1436 - 2026', 'Civil-1436-2026', 'exacta'],
+    ['Rol 1.436-2026', 'L-1436 -2026', 'exacta'],
+    ['1436 - 2026', '1436', 'parcial'],
+    ['1436 - 2025', '1436-2026', null],
+    ['1437 - 2026', '1436-2026', null],
+]);
