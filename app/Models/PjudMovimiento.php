@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\Permiso;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -35,6 +37,22 @@ class PjudMovimiento extends Model
     public function tribunalPjud(): BelongsTo
     {
         return $this->belongsTo(TribunalPjud::class, 'tribunal_pjud_codigo', 'codigo');
+    }
+
+    /**
+     * Movimientos visibles en Monitoreo › Causas: todos con "monitoreo.ver-todas";
+     * si no, sólo los de causas de las que el usuario es responsable.
+     *
+     * @param  Builder<PjudMovimiento>  $query
+     * @return Builder<PjudMovimiento>
+     */
+    public function scopeVisibleFor(Builder $query, User $user): Builder
+    {
+        if ($user->can(Permiso::MonitoreoVerTodas->value)) {
+            return $query;
+        }
+
+        return $query->whereHas('causa', fn (Builder $causa) => $causa->where('responsable_id', $user->id));
     }
 
     /** @return array<string, string> */
