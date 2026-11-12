@@ -352,14 +352,14 @@ new #[Title('Monitoreo de salas')] class extends Component
                         </flux:table.row>
                     @endif
                     <flux:table.row :key="$programacion->id">
-                        <flux:table.cell>
+                        <flux:table.cell class="min-w-48 whitespace-normal break-words">
                             <span>{{ $programacion->tribunal_nombre }}</span>
                             <br><span class="text-xs text-zinc-500">{{ $programacion->sala }} · Tabla {{ $programacion->tipo_tabla }}@if ($programacion->numero_orden) · N° orden {{ $programacion->numero_orden }}@endif</span>
                             @if ($programacion->relator)
                                 <br><span class="text-xs text-zinc-500">Relator: {{ $programacion->relator }}</span>
                             @endif
                         </flux:table.cell>
-                        <flux:table.cell>
+                        <flux:table.cell class="min-w-48 whitespace-normal break-words">
                             @if ($programacion->causa && ! $programacion->causa->trashed() && auth()->user()->can('view', $programacion->causa))
                                 <a href="{{ route('causas.show', $programacion->causa) }}" wire:navigate class="font-medium text-blue-700 hover:underline dark:text-blue-400">{{ $programacion->causa->numero_causa ?? $programacion->causa->nombre }}</a>
                             @else
@@ -371,7 +371,7 @@ new #[Title('Monitoreo de salas')] class extends Component
                             @endif
                         </flux:table.cell>
                         @if ($this->puedeVerTodas)
-                            <flux:table.cell>{{ $programacion->causa?->responsable?->name ?? 'Sin responsable' }}</flux:table.cell>
+                            <flux:table.cell class="min-w-32 whitespace-normal break-words">{{ $programacion->causa?->responsable?->name ?? 'Sin responsable' }}</flux:table.cell>
                         @endif
                         <flux:table.cell>
                             <div class="flex flex-wrap gap-1">
