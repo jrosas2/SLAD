@@ -39,6 +39,14 @@ Route::middleware(['auth', EnsureUserIsActive::class, EnsurePasswordChanged::cla
     Route::get('admin/google-calendar/callback', [GoogleCalendarOAuthController::class, 'callback'])->name('admin.google-calendar.callback');
     Route::delete('admin/google-calendar', [GoogleCalendarOAuthController::class, 'destroy'])->name('admin.google-calendar.destroy');
 
+    Route::prefix('monitoreo')
+        ->middleware('can:'.Permiso::MonitoreoVer->value)
+        ->name('monitoreo.')
+        ->group(function () {
+            Route::livewire('causas', 'pages::monitoreo.causas')->name('causas');
+            Route::livewire('salas', 'pages::monitoreo.salas')->name('salas');
+        });
+
     Route::prefix('causas')
         ->name('causas.')
         ->group(function () {

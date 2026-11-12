@@ -48,6 +48,13 @@
                     @endcan
                 </flux:sidebar.group>
 
+                @can(\App\Enums\Permiso::MonitoreoVer->value)
+                    <flux:sidebar.group heading="Monitoreo" class="grid">
+                        <flux:sidebar.item icon="bell-alert" :href="route('monitoreo.causas')" :current="request()->routeIs('monitoreo.causas')" wire:navigate>Causas</flux:sidebar.item>
+                        <flux:sidebar.item icon="calendar" :href="route('monitoreo.salas')" :current="request()->routeIs('monitoreo.salas')" wire:navigate>Salas</flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endcan
+
                 @can(\App\Enums\Permiso::CatalogosVer->value)
                     <flux:sidebar.group heading="Catálogos" class="grid">
                         <flux:sidebar.item icon="briefcase" :href="route('catalogos.simple.index', ['catalogo' => 'materias'])" :current="request()->is('catalogos/materias')" wire:navigate>Materias</flux:sidebar.item>

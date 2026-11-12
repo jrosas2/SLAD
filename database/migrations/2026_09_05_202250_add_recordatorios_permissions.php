@@ -35,10 +35,15 @@ return new class extends Migration
         ]);
 
         Role::query()->where('name', RolUsuario::Consulta->value)->first()?->givePermissionTo(Permiso::RecordatoriosVer->value);
-        Role::query()->where('name', RolUsuario::Administrador->value)->first()?->givePermissionTo(array_map(
-            fn (Permiso $permission): string => $permission->value,
-            Permiso::cases(),
-        ));
+        // Sólo los permisos que ya existen en este punto: los que se agreguen al
+        // enum más adelante los crea y asigna su propia migración.
+        Role::query()->where('name', RolUsuario::Administrador->value)->first()?->givePermissionTo(
+            Permission::query()
+                ->where('guard_name', 'web')
+                ->whereIn('name', array_map(fn (Permiso $permission): string => $permission->value, Permiso::cases()))
+                ->pluck('name')
+                ->all(),
+        );
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

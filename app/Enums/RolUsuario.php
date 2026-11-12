@@ -40,6 +40,7 @@ enum RolUsuario: string
                 Permiso::RecordatoriosEditar,
                 Permiso::RecordatoriosCancelar,
                 Permiso::CatalogosVer,
+                Permiso::MonitoreoVer,
             ],
             self::Consulta => [
                 Permiso::DashboardVer,
@@ -49,6 +50,7 @@ enum RolUsuario: string
                 Permiso::DocumentosVer,
                 Permiso::RecordatoriosVer,
                 Permiso::CatalogosVer,
+                Permiso::MonitoreoVer,
             ],
         };
     }
