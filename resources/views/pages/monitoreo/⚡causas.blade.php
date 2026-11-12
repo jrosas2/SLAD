@@ -196,8 +196,8 @@ new #[Title('Monitoreo de causas')] class extends Component
                         </flux:table.row>
                     @endif
                     <flux:table.row :key="$movimiento->id">
-                        <flux:table.cell>{{ $movimiento->tribunal_nombre }}</flux:table.cell>
-                        <flux:table.cell>
+                        <flux:table.cell class="min-w-36 whitespace-normal break-words">{{ $movimiento->tribunal_nombre }}</flux:table.cell>
+                        <flux:table.cell class="min-w-48 whitespace-normal break-words">
                             @if ($movimiento->causa && ! $movimiento->causa->trashed() && auth()->user()->can('view', $movimiento->causa))
                                 <a href="{{ route('causas.show', $movimiento->causa) }}" wire:navigate class="font-medium text-blue-700 hover:underline dark:text-blue-400">{{ $movimiento->causa->numero_causa ?? $movimiento->causa->nombre }}</a>
                             @else
@@ -208,7 +208,7 @@ new #[Title('Monitoreo de causas')] class extends Component
                                 <br><span class="text-xs text-zinc-500">{{ $movimiento->caratulado }}</span>
                             @endif
                         </flux:table.cell>
-                        <flux:table.cell>
+                        <flux:table.cell class="min-w-64 whitespace-normal break-words">
                             <span>{{ $movimiento->tramite ?? '—' }}</span>
                             @if ($movimiento->detalle)
                                 <br><span class="text-xs text-zinc-500">{{ $movimiento->detalle }}</span>
@@ -218,7 +218,7 @@ new #[Title('Monitoreo de causas')] class extends Component
                             @endif
                         </flux:table.cell>
                         @if ($this->puedeVerTodas)
-                            <flux:table.cell>{{ $movimiento->causa?->responsable?->name ?? 'Sin responsable' }}</flux:table.cell>
+                            <flux:table.cell class="min-w-32 whitespace-normal break-words">{{ $movimiento->causa?->responsable?->name ?? 'Sin responsable' }}</flux:table.cell>
                         @endif
                         <flux:table.cell class="whitespace-nowrap">
                             @if ($movimiento->notificado_at)
