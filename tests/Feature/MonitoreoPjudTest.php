@@ -36,6 +36,7 @@ beforeEach(function () {
 
 test('el menú Monitoreo (Causas y Salas) exige el permiso monitoreo.ver', function () {
     $sinPermiso = User::factory()->create();
+    $sinPermiso->syncRoles([]); // la factory asigna CONSULTA por defecto
     $this->actingAs($sinPermiso)->get(route('monitoreo.salas'))->assertForbidden();
     $this->actingAs($sinPermiso)->get(route('monitoreo.causas'))->assertForbidden();
 
