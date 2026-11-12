@@ -21,7 +21,7 @@ function programacionSala(Causa $causa, string $fecha, string $sala = '1', array
         'sala_numero' => $sala,
         'sala' => $sala === '1' ? 'PRIMERA' : 'SEGUNDA',
         'numero_orden' => 4,
-        'numero_ingreso' => $causa->numero_causa,
+        'numero_ingreso' => $causa->numero_causa ?? '1-2026', // la factory a veces deja la causa sin número
         'tipo_coincidencia' => 'exacta',
         'caratulado' => 'PÉREZ CON FISCO',
         'huella' => hash('sha256', $causa->id.'|'.$fecha.'|'.$sala.'|'.uniqid('', true)),
@@ -145,7 +145,7 @@ function movimientoEstadoDiario(Causa $causa, string $fecha, string $tramite): P
         'causa_id' => $causa->id,
         'tribunal_pjud_codigo' => 4901014,
         'fecha_estado_diario' => $fecha,
-        'numero_ingreso' => $causa->numero_causa,
+        'numero_ingreso' => $causa->numero_causa ?? '1-2026', // la factory a veces deja la causa sin número
         'tipo_coincidencia' => 'exacta',
         'tribunal_nombre' => 'CORTE DE APELACIONES DE TEMUCO',
         'caratulado' => 'PÉREZ CON FISCO',
