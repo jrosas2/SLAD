@@ -170,3 +170,16 @@ test('monitoreo de causas agrupa los movimientos por día y respeta la visibilid
     $this->actingAs(User::factory()->administrador()->create());
     Livewire::test('pages::monitoreo.causas')->assertSee('Trámite ajeno');
 });
+
+test('muestra la cantidad de providencias del Estado Diario como texto legible', function () {
+    $this->actingAs(User::factory()->administrador()->create());
+    movimientoEstadoDiario(Causa::factory()->create(['numero_causa' => '1436-2026']), '2026-11-10', '2');
+    movimientoEstadoDiario(Causa::factory()->create(['numero_causa' => '982-2026']), '2026-11-10', '1');
+
+    Livewire::test('pages::monitoreo.causas')
+        ->assertSee('2 providencias dictadas este día')
+        ->assertSee('1 providencia dictada este día');
+
+    expect((new PjudMovimiento(['tramite' => 'Autos en relación']))->descripcionTramite())->toBe('Autos en relación')
+        ->and((new PjudMovimiento(['tramite' => null]))->descripcionTramite())->toBeNull();
+});
