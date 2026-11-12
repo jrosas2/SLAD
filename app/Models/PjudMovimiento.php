@@ -55,6 +55,29 @@ class PjudMovimiento extends Model
         return $query->whereHas('causa', fn (Builder $causa) => $causa->where('responsable_id', $user->id));
     }
 
+    /**
+     * Texto legible del trámite: el Estado Diario del PJUD trae en la columna
+     * "Providencias" sólo la cantidad de resoluciones del día ("1", "2"…).
+     */
+    public function descripcionTramite(): ?string
+    {
+        $tramite = trim((string) $this->tramite);
+
+        if ($tramite === '') {
+            return null;
+        }
+
+        if (ctype_digit($tramite)) {
+            $cantidad = (int) $tramite;
+
+            return $cantidad === 1
+                ? '1 providencia dictada este día'
+                : $cantidad.' providencias dictadas este día';
+        }
+
+        return $tramite;
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
