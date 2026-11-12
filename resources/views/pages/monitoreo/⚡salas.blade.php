@@ -442,7 +442,7 @@ new #[Title('Monitoreo de salas')] class extends Component
                     @forelse ($this->movimientos as $movimiento)
                         <div class="grid gap-1 border-b border-zinc-100 pb-2 text-sm dark:border-zinc-800">
                             <span class="font-medium">{{ $movimiento->fecha_estado_diario->format('d/m/Y') }} · {{ $movimiento->tribunal_nombre }}</span>
-                            @if ($movimiento->tramite)<span>{{ $movimiento->tramite }}</span>@endif
+                            @if ($movimiento->descripcionTramite())<span>{{ $movimiento->descripcionTramite() }}</span>@endif
                             @if ($movimiento->detalle)<span class="text-zinc-500">{{ $movimiento->detalle }}</span>@endif
                         </div>
                     @empty

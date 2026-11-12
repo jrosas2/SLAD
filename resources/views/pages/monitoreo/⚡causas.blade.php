@@ -209,7 +209,7 @@ new #[Title('Monitoreo de causas')] class extends Component
                             @endif
                         </flux:table.cell>
                         <flux:table.cell class="min-w-64 whitespace-normal break-words">
-                            <span>{{ $movimiento->tramite ?? '—' }}</span>
+                            <span>{{ $movimiento->descripcionTramite() ?? '—' }}</span>
                             @if ($movimiento->detalle)
                                 <br><span class="text-xs text-zinc-500">{{ $movimiento->detalle }}</span>
                             @endif
