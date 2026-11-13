@@ -219,3 +219,39 @@ test('sin el permiso monitoreo.ver la causa no muestra el bloque del monitoreo',
         ->assertOk()
         ->assertDontSee('Próxima vista en sala');
 });
+
+test('imprimir Monitoreo › Causas incluye todos los movimientos filtrados, no sólo la página', function () {
+    $this->actingAs(User::factory()->administrador()->create());
+    $causa = Causa::factory()->create(['numero_causa' => '1436-2026']);
+
+    foreach (range(1, 30) as $numero) {
+        movimientoEstadoDiario($causa, '2026-11-'.str_pad((string) (($numero % 9) + 1), 2, '0', STR_PAD_LEFT), "Trámite impreso {$numero}");
+    }
+
+    $respuesta = $this->get(route('monitoreo.causas', ['imprimir' => 1]))
+        ->assertOk()
+        ->assertSee('Monitoreo PJUD — Movimientos del Estado Diario')
+        ->assertSee('Total de movimientos: 30')
+        ->assertSee('window.print()', false);
+
+    foreach (range(1, 30) as $numero) {
+        $respuesta->assertSee("Trámite impreso {$numero}");
+    }
+
+    $this->get(route('monitoreo.causas'))->assertOk()->assertDontSee('Total de movimientos:');
+});
+
+test('imprimir Monitoreo › Salas respeta los filtros y agrupa por día', function () {
+    $this->actingAs(User::factory()->administrador()->create());
+    programacionSala(Causa::factory()->create(['numero_causa' => '1436-2026']), '2026-11-19', '2');
+    programacionSala(Causa::factory()->create(['numero_causa' => '982-2026']), '2026-11-17', '1');
+
+    $this->get(route('monitoreo.salas', ['imprimir' => 1, 'sala' => '2']))
+        ->assertOk()
+        ->assertSee('Monitoreo PJUD — Agendamientos en salas de las Cortes')
+        ->assertSee('Sala: SEGUNDA')
+        ->assertSee('Jueves 19 de noviembre de 2026')
+        ->assertSee('1436-2026')
+        ->assertDontSee('982-2026')
+        ->assertSee('Total de agendamientos: 1');
+});

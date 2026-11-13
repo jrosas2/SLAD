@@ -5,6 +5,7 @@ use App\Enums\Permiso;
 use App\Models\PjudMovimiento;
 use App\Models\PjudProgramacion;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -45,9 +46,13 @@ new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
 
     public bool $showHistorial = false;
 
+    #[Locked]
+    public bool $imprimir = false;
+
     public function mount(): void
     {
         abort_unless(auth()->user()?->can(Permiso::MonitoreoVer->value), 403);
+        $this->imprimir = request()->boolean('imprimir');
     }
 
     public function updated(string $property): void
@@ -77,6 +82,52 @@ new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
     #[Computed]
     public function programaciones(): LengthAwarePaginator
     {
+        return $this->consultaProgramaciones()->paginate(20);
+    }
+
+    /**
+     * Todas las programaciones que cumplen los filtros (para imprimir).
+     *
+     * @return Collection<int, PjudProgramacion>
+     */
+    #[Computed]
+    public function programacionesImpresion(): Collection
+    {
+        return $this->imprimir ? $this->consultaProgramaciones()->limit(5000)->get() : new Collection;
+    }
+
+    /** @return list<int> */
+    #[Computed]
+    public function reprogramadasImpresion(): array
+    {
+        $ids = $this->programacionesImpresion->modelKeys();
+
+        return $ids === [] ? [] : PjudProgramacion::query()->whereKey($ids)->reprogramadas()->pluck('id')->all();
+    }
+
+    /** @return list<string> */
+    #[Computed]
+    public function filtrosImpresion(): array
+    {
+        $corte = collect($this->cortes)->firstWhere('codigo', (int) $this->corte);
+        $sala = collect($this->salas)->firstWhere('numero', $this->sala);
+        $responsable = $this->responsable === 'sin_responsable' ? 'Sin responsable' : User::query()->whereKey($this->responsable)->value('name');
+        $estados = ['proximas' => 'Próximas', 'realizadas' => 'Fecha pasada', 'reprogramadas' => 'Reprogramadas'];
+
+        return array_values(array_filter([
+            trim($this->search) !== '' ? 'Búsqueda: '.trim($this->search) : null,
+            $this->corte !== '' ? 'Corte: '.($corte['nombre'] ?? $this->corte) : null,
+            $this->sala !== '' ? 'Sala: '.($sala['nombre'] ?? $this->sala) : null,
+            $this->estado !== '' ? 'Estado: '.($estados[$this->estado] ?? $this->estado) : null,
+            $this->puedeVerTodas && $this->responsable !== '' ? 'Responsable: '.($responsable ?? $this->responsable) : null,
+            $this->desde !== '' ? 'Vista desde: '.CarbonImmutable::parse($this->desde)->format('d-m-Y') : null,
+            $this->hasta !== '' ? 'Vista hasta: '.CarbonImmutable::parse($this->hasta)->format('d-m-Y') : null,
+        ]));
+    }
+
+    /** @return Builder<PjudProgramacion> */
+    private function consultaProgramaciones(): Builder
+    {
         $hoy = now()->toDateString();
 
         return $this->visibles()
@@ -103,8 +154,7 @@ new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
             ->orderByDesc('fecha_vista')
             ->orderBy('tribunal_nombre')
             ->orderBy('sala_numero')
-            ->orderBy('numero_orden')
-            ->paginate(20);
+            ->orderBy('numero_orden');
     }
 
     /**
@@ -281,7 +331,11 @@ new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
     }
 }; ?>
 
-<div class="flex w-full flex-1 flex-col gap-6">
+<div class="monitoreo-pagina flex w-full flex-1 flex-col gap-6">
+    @if ($imprimir)
+        <div x-data x-init="window.setTimeout(() => window.print(), 400)" wire:ignore></div>
+    @endif
+
     <div class="flex flex-col justify-between gap-4 border-b border-zinc-200 pb-6 sm:flex-row sm:items-end dark:border-zinc-700">
         <div class="grid gap-2">
             <flux:badge color="blue" size="sm" class="w-fit">Monitoreo PJUD</flux:badge>
@@ -292,6 +346,9 @@ new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
                     Se muestran sólo las causas de las que eres responsable.
                 @endunless
             </flux:text>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <flux:button type="button" variant="primary" color="blue" icon="printer" x-on:click="const url = new URL(window.location.href); url.searchParams.set('imprimir', '1'); url.searchParams.delete('page'); window.open(url.toString(), '_blank');" wire:ignore>Imprimir</flux:button>
         </div>
     </div>
 
@@ -468,4 +525,70 @@ new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
         @endif
     </flux:modal>
     <x-monitoreo.descartar-modal :registro="$this->registroADescartar" />
+
+    @if ($imprimir)
+        <section class="monitoreo-print-only" aria-label="Listado imprimible de salas del monitoreo">
+            <header class="monitoreo-print-header">
+                <p class="monitoreo-print-brand">SLAD</p>
+                <p>Sistema Logístico de Administración de Derecho</p>
+                <h1>Monitoreo PJUD — Agendamientos en salas de las Cortes</h1>
+                <div><strong>Fecha de impresión:</strong> {{ now()->format('d-m-Y H:i') }} · <strong>Impreso por:</strong> {{ auth()->user()?->name }}</div>
+                <p class="monitoreo-print-filtros"><strong>Filtros:</strong> {{ $this->filtrosImpresion === [] ? 'Sin filtros (todos los agendamientos visibles)' : implode(' · ', $this->filtrosImpresion) }}</p>
+            </header>
+
+            <table class="monitoreo-print-table">
+                <thead>
+                    <tr><th>Corte / sala</th><th>Causa</th>@if ($this->puedeVerTodas)<th>Responsable</th>@endif<th>Estado</th><th>Detectada / aviso</th></tr>
+                </thead>
+                <tbody>
+                    @php($diaImpresion = null)
+                    @php($conteoDias = $this->programacionesImpresion->countBy(fn ($item) => $item->fecha_vista->toDateString()))
+                    @forelse ($this->programacionesImpresion as $fila)
+                        @if ($fila->fecha_vista->toDateString() !== $diaImpresion)
+                            @php($diaImpresion = $fila->fecha_vista->toDateString())
+                            <tr class="monitoreo-print-dia"><td colspan="{{ $this->puedeVerTodas ? 5 : 4 }}">{{ ucfirst($fila->fecha_vista->translatedFormat('l j \d\e F \d\e Y')) }} · {{ $conteoDias[$diaImpresion] }} causa(s)</td></tr>
+                        @endif
+                        <tr>
+                            <td>{{ $fila->tribunal_nombre }}<span>{{ $fila->sala }} · Tabla {{ $fila->tipo_tabla }}{{ $fila->numero_orden ? ' · N° orden '.$fila->numero_orden : '' }}</span>@if ($fila->relator)<span>Relator: {{ $fila->relator }}</span>@endif</td>
+                            <td><strong>{{ $fila->causa?->numero_causa ?? $fila->causa?->nombre ?? '—' }}</strong><span>Ingreso PJUD: {{ $fila->numero_ingreso }}</span>@if ($fila->caratulado)<span>{{ $fila->caratulado }}</span>@endif</td>
+                            @if ($this->puedeVerTodas)<td>{{ $fila->causa?->responsable?->name ?? 'Sin responsable' }}</td>@endif
+                            <td>{{ in_array($fila->id, $this->reprogramadasImpresion, true) ? 'Reprogramada' : ($fila->fecha_vista->isBefore(today()) ? 'Fecha pasada' : 'Próxima') }}@if ($fila->tipo_coincidencia !== 'exacta')<span>Coincidencia {{ $fila->tipo_coincidencia }}</span>@endif</td>
+                            <td>{{ $fila->detectada_en?->format('d-m-Y H:i') ?? '—' }}<span>{{ $fila->notificado_at ? 'Avisado '.$fila->notificado_at->format('d-m-Y H:i') : 'Sin aviso' }}</span></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="{{ $this->puedeVerTodas ? 5 : 4 }}" class="monitoreo-print-empty">No hay agendamientos en salas para los filtros seleccionados.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            <p class="monitoreo-print-total">Total de agendamientos: {{ $this->programacionesImpresion->count() }}</p>
+        </section>
+    @endif
+
+    <style>
+    .monitoreo-print-only { display: none; }
+
+    @media print {
+        @page { size: 13in 8.5in; margin: 10mm; }
+
+        [data-flux-sidebar], [data-flux-header], ui-sidebar, ui-sidebar-toggle, ui-header, ui-toast-group, nav { display: none !important; }
+        .monitoreo-pagina > *:not(.monitoreo-print-only) { display: none !important; }
+        html, body, .slad-main { min-height: 0 !important; height: auto !important; background: #fff !important; color: #111 !important; }
+        .slad-main > [wire\:id] { flex: none !important; }
+        .monitoreo-print-only { display: block !important; font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
+        .monitoreo-print-header { border-bottom: 2px solid #111; margin-bottom: 4mm; padding-bottom: 3mm; }
+        .monitoreo-print-brand { font-size: 16pt; font-weight: 700; letter-spacing: .08em; margin: 0; }
+        .monitoreo-print-header p:not(.monitoreo-print-brand) { margin: 0; }
+        .monitoreo-print-header h1 { font-size: 13pt; margin: 3mm 0 2mm; text-transform: uppercase; }
+        .monitoreo-print-filtros { margin: 1mm 0 0; color: #333; }
+        .monitoreo-print-table { border-collapse: collapse; width: 100%; }
+        .monitoreo-print-table th, .monitoreo-print-table td { border: 1px solid #aaa; padding: 1.5mm 2mm; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+        .monitoreo-print-table th { background: #eee; font-size: 7pt; text-transform: uppercase; }
+        .monitoreo-print-table td span { display: block; margin-top: .5mm; color: #555; }
+        .monitoreo-print-table tr { break-inside: avoid; page-break-inside: avoid; }
+        .monitoreo-print-table tr.monitoreo-print-dia td { background: #f3f3f3; font-weight: 700; break-after: avoid; page-break-after: avoid; }
+        .monitoreo-print-empty { padding: 8mm !important; text-align: center !important; }
+        .monitoreo-print-total { font-size: 9pt; font-weight: 700; margin-top: 4mm; text-align: right; }
+    }
+    </style>
 </div>
