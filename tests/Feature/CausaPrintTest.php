@@ -145,5 +145,8 @@ test('la impresión incluye todas las actuaciones, documentos, recordatorios y e
         ->assertSee('Revisar notificación')
         ->assertSee('Llamar al receptor')
         ->assertSee('[data-flux-header]', false)
+        ->assertSee('images/logo-slad-impresion.png', false)
+        ->assertSee('Sistema Logístico de Administración de Causas')
+        ->assertDontSee('Administración de Derecho')
         ->assertDontSee('.print-section, .print-entry', false);
 });

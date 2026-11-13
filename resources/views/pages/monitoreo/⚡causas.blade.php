@@ -298,8 +298,7 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
     @if ($imprimir)
         <section class="monitoreo-print-only" aria-label="Listado imprimible de movimientos del monitoreo">
             <header class="monitoreo-print-header">
-                <p class="monitoreo-print-brand">SLAD</p>
-                <p>Sistema Logístico de Administración de Derecho</p>
+                <img class="monitoreo-print-brand" src="{{ asset('images/logo-slad-impresion.png') }}" alt="SLAD — Sistema Logístico de Administración de Causas">
                 <h1>Monitoreo PJUD — Movimientos del Estado Diario</h1>
                 <div><strong>Fecha de impresión:</strong> {{ now()->format('d-m-Y H:i') }} · <strong>Impreso por:</strong> {{ auth()->user()?->name }}</div>
                 <p class="monitoreo-print-filtros"><strong>Filtros:</strong> {{ $this->filtrosImpresion === [] ? 'Sin filtros (todos los movimientos visibles)' : implode(' · ', $this->filtrosImpresion) }}</p>
@@ -346,7 +345,7 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
         .slad-main > [wire\:id] { flex: none !important; }
         .monitoreo-print-only { display: block !important; font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
         .monitoreo-print-header { border-bottom: 2px solid #111; margin-bottom: 4mm; padding-bottom: 3mm; }
-        .monitoreo-print-brand { font-size: 16pt; font-weight: 700; letter-spacing: .08em; margin: 0; }
+        .monitoreo-print-brand { display: block; height: 16mm; width: auto; margin: 0 0 1mm; }
         .monitoreo-print-header p:not(.monitoreo-print-brand) { margin: 0; }
         .monitoreo-print-header h1 { font-size: 13pt; margin: 3mm 0 2mm; text-transform: uppercase; }
         .monitoreo-print-filtros { margin: 1mm 0 0; color: #333; }

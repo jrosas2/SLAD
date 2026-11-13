@@ -488,8 +488,7 @@ new #[Title('Causas')] class extends Component
     @if ($openPrintDialog)
     <section class="causas-print-only causas-print-list" aria-label="Listado imprimible de causas">
         <header class="causas-print-header">
-            <p class="causas-print-brand">SLAD</p>
-            <p>Sistema Logístico de Administración de Derecho</p>
+            <img class="causas-print-brand" src="{{ asset('images/logo-slad-impresion.png') }}" alt="SLAD — Sistema Logístico de Administración de Causas">
             <h1>Listado de causas</h1>
             <div><strong>Fecha de impresión:</strong> {{ now()->format('d-m-Y H:i') }}</div>
         </header>
@@ -532,7 +531,7 @@ new #[Title('Causas')] class extends Component
         .causas-print-only { display: block !important; }
         .causas-print-list { font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
         .causas-print-header { border-bottom: 2px solid #111; margin-bottom: 5mm; padding-bottom: 3mm; }
-        .causas-print-brand { font-size: 16pt; font-weight: 700; letter-spacing: .08em; margin: 0; }
+        .causas-print-brand { display: block; height: 16mm; width: auto; margin: 0 0 1mm; }
         .causas-print-header p:not(.causas-print-brand) { margin: 0; }
         .causas-print-header h1 { font-size: 14pt; margin: 4mm 0 2mm; text-transform: uppercase; }
         .causas-print-table { border-collapse: collapse; width: 100%; }
