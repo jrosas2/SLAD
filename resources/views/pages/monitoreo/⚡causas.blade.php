@@ -4,10 +4,12 @@ use App\Livewire\Monitoreo\ComponenteConDescartePjud;
 use App\Enums\Permiso;
 use App\Models\PjudMovimiento;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\WithPagination;
@@ -31,9 +33,13 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
     #[Url(except: '')]
     public string $hasta = '';
 
+    #[Locked]
+    public bool $imprimir = false;
+
     public function mount(): void
     {
         abort_unless(auth()->user()?->can(Permiso::MonitoreoVer->value), 403);
+        $this->imprimir = request()->boolean('imprimir');
     }
 
     public function updated(string $property): void
@@ -59,6 +65,39 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
     #[Computed]
     public function movimientos(): LengthAwarePaginator
     {
+        return $this->consultaMovimientos()->paginate(25);
+    }
+
+    /**
+     * Todos los movimientos que cumplen los filtros (para imprimir).
+     *
+     * @return Collection<int, PjudMovimiento>
+     */
+    #[Computed]
+    public function movimientosImpresion(): Collection
+    {
+        return $this->imprimir ? $this->consultaMovimientos()->limit(5000)->get() : new Collection;
+    }
+
+    /** @return list<string> */
+    #[Computed]
+    public function filtrosImpresion(): array
+    {
+        $tribunal = collect($this->tribunales)->firstWhere('codigo', (int) $this->tribunal);
+        $responsable = $this->responsable === 'sin_responsable' ? 'Sin responsable' : User::query()->whereKey($this->responsable)->value('name');
+
+        return array_values(array_filter([
+            trim($this->search) !== '' ? 'Búsqueda: '.trim($this->search) : null,
+            $this->tribunal !== '' ? 'Tribunal: '.($tribunal['nombre'] ?? $this->tribunal) : null,
+            $this->puedeVerTodas && $this->responsable !== '' ? 'Responsable: '.($responsable ?? $this->responsable) : null,
+            $this->desde !== '' ? 'Desde: '.CarbonImmutable::parse($this->desde)->format('d-m-Y') : null,
+            $this->hasta !== '' ? 'Hasta: '.CarbonImmutable::parse($this->hasta)->format('d-m-Y') : null,
+        ]));
+    }
+
+    /** @return Builder<PjudMovimiento> */
+    private function consultaMovimientos(): Builder
+    {
         return $this->visibles()
             ->with(['causa:id,nombre,numero_causa,responsable_id,deleted_at', 'causa.responsable:id,codigo,name'])
             ->when($this->tribunal !== '', fn (Builder $query) => $query->where('tribunal_pjud_codigo', $this->tribunal))
@@ -78,8 +117,7 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
             })
             ->orderByDesc('fecha_estado_diario')
             ->orderBy('tribunal_nombre')
-            ->orderByDesc('id')
-            ->paginate(25);
+            ->orderByDesc('id');
     }
 
     /**
@@ -133,7 +171,11 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
     }
 }; ?>
 
-<div class="flex w-full flex-1 flex-col gap-6">
+<div class="monitoreo-pagina flex w-full flex-1 flex-col gap-6">
+    @if ($imprimir)
+        <div x-data x-init="window.setTimeout(() => window.print(), 400)" wire:ignore></div>
+    @endif
+
     <div class="flex flex-col justify-between gap-4 border-b border-zinc-200 pb-6 sm:flex-row sm:items-end dark:border-zinc-700">
         <div class="grid gap-2">
             <flux:badge color="blue" size="sm" class="w-fit">Monitoreo PJUD</flux:badge>
@@ -144,6 +186,9 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
                     Se muestran sólo las causas de las que eres responsable.
                 @endunless
             </flux:text>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <flux:button type="button" variant="primary" color="blue" icon="printer" x-on:click="const url = new URL(window.location.href); url.searchParams.set('imprimir', '1'); url.searchParams.delete('page'); window.open(url.toString(), '_blank');" wire:ignore>Imprimir</flux:button>
         </div>
     </div>
 
@@ -249,4 +294,70 @@ new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
     </flux:card>
 
     <x-monitoreo.descartar-modal :registro="$this->registroADescartar" />
+
+    @if ($imprimir)
+        <section class="monitoreo-print-only" aria-label="Listado imprimible de movimientos del monitoreo">
+            <header class="monitoreo-print-header">
+                <p class="monitoreo-print-brand">SLAD</p>
+                <p>Sistema Logístico de Administración de Derecho</p>
+                <h1>Monitoreo PJUD — Movimientos del Estado Diario</h1>
+                <div><strong>Fecha de impresión:</strong> {{ now()->format('d-m-Y H:i') }} · <strong>Impreso por:</strong> {{ auth()->user()?->name }}</div>
+                <p class="monitoreo-print-filtros"><strong>Filtros:</strong> {{ $this->filtrosImpresion === [] ? 'Sin filtros (todos los movimientos visibles)' : implode(' · ', $this->filtrosImpresion) }}</p>
+            </header>
+
+            <table class="monitoreo-print-table">
+                <thead>
+                    <tr><th>Tribunal</th><th>Causa</th><th>Movimiento</th>@if ($this->puedeVerTodas)<th>Responsable</th>@endif<th>Aviso Google Calendar</th></tr>
+                </thead>
+                <tbody>
+                    @php($diaImpresion = null)
+                    @php($conteoDias = $this->movimientosImpresion->countBy(fn ($item) => $item->fecha_estado_diario->toDateString()))
+                    @forelse ($this->movimientosImpresion as $fila)
+                        @if ($fila->fecha_estado_diario->toDateString() !== $diaImpresion)
+                            @php($diaImpresion = $fila->fecha_estado_diario->toDateString())
+                            <tr class="monitoreo-print-dia"><td colspan="{{ $this->puedeVerTodas ? 5 : 4 }}">{{ ucfirst($fila->fecha_estado_diario->translatedFormat('l j \d\e F \d\e Y')) }} · {{ $conteoDias[$diaImpresion] }} movimiento(s)</td></tr>
+                        @endif
+                        <tr>
+                            <td>{{ $fila->tribunal_nombre }}</td>
+                            <td><strong>{{ $fila->causa?->numero_causa ?? $fila->causa?->nombre ?? '—' }}</strong><span>Ingreso PJUD: {{ $fila->numero_ingreso }}</span>@if ($fila->caratulado)<span>{{ $fila->caratulado }}</span>@endif</td>
+                            <td>{{ $fila->descripcionTramite() ?? '—' }}@if ($fila->detalle)<span>{{ $fila->detalle }}</span>@endif @if ($fila->tipo_coincidencia !== 'exacta')<span>Coincidencia {{ $fila->tipo_coincidencia }}</span>@endif</td>
+                            @if ($this->puedeVerTodas)<td>{{ $fila->causa?->responsable?->name ?? 'Sin responsable' }}</td>@endif
+                            <td>{{ $fila->notificado_at ? 'Avisado '.$fila->notificado_at->format('d-m-Y H:i') : 'Sin aviso' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="{{ $this->puedeVerTodas ? 5 : 4 }}" class="monitoreo-print-empty">No hay movimientos para los filtros seleccionados.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            <p class="monitoreo-print-total">Total de movimientos: {{ $this->movimientosImpresion->count() }}</p>
+        </section>
+    @endif
+
+    <style>
+    .monitoreo-print-only { display: none; }
+
+    @media print {
+        @page { size: 13in 8.5in; margin: 10mm; }
+
+        [data-flux-sidebar], [data-flux-header], ui-sidebar, ui-sidebar-toggle, ui-header, ui-toast-group, nav { display: none !important; }
+        .monitoreo-pagina > *:not(.monitoreo-print-only) { display: none !important; }
+        html, body, .slad-main { min-height: 0 !important; height: auto !important; background: #fff !important; color: #111 !important; }
+        .slad-main > [wire\:id] { flex: none !important; }
+        .monitoreo-print-only { display: block !important; font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
+        .monitoreo-print-header { border-bottom: 2px solid #111; margin-bottom: 4mm; padding-bottom: 3mm; }
+        .monitoreo-print-brand { font-size: 16pt; font-weight: 700; letter-spacing: .08em; margin: 0; }
+        .monitoreo-print-header p:not(.monitoreo-print-brand) { margin: 0; }
+        .monitoreo-print-header h1 { font-size: 13pt; margin: 3mm 0 2mm; text-transform: uppercase; }
+        .monitoreo-print-filtros { margin: 1mm 0 0; color: #333; }
+        .monitoreo-print-table { border-collapse: collapse; width: 100%; }
+        .monitoreo-print-table th, .monitoreo-print-table td { border: 1px solid #aaa; padding: 1.5mm 2mm; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+        .monitoreo-print-table th { background: #eee; font-size: 7pt; text-transform: uppercase; }
+        .monitoreo-print-table td span { display: block; margin-top: .5mm; color: #555; }
+        .monitoreo-print-table tr { break-inside: avoid; page-break-inside: avoid; }
+        .monitoreo-print-table tr.monitoreo-print-dia td { background: #f3f3f3; font-weight: 700; break-after: avoid; page-break-after: avoid; }
+        .monitoreo-print-empty { padding: 8mm !important; text-align: center !important; }
+        .monitoreo-print-total { font-size: 9pt; font-weight: 700; margin-top: 4mm; text-align: right; }
+    }
+    </style>
 </div>
