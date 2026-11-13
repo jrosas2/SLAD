@@ -501,3 +501,23 @@ test('la carga principal evita N más uno y mantiene consultas acotadas', functi
 
     expect($queryCount)->toBeLessThanOrEqual(22);
 });
+
+test('los indicadores muestran su porcentaje sobre el total de causas y sobre el monto demandado', function () {
+    $vigente = EstadoCausa::query()->firstOrCreate(['nombre' => 'VIGENTE']);
+    $cerrada = EstadoCausa::query()->firstOrCreate(['nombre' => 'CERRADA']);
+    $causas = collect([$vigente, $vigente, $vigente, $cerrada])->map(fn (EstadoCausa $estado) => Causa::factory()->create([
+        'estado_causa_id' => $estado->id,
+        'monto_demandado' => 2500000,
+    ]));
+    MovimientoFinanciero::factory()->for($causas->first())->create(['tipo' => TipoMovimientoFinanciero::Ingreso, 'monto' => 300000]);
+    MovimientoFinanciero::factory()->for($causas->last())->create(['tipo' => TipoMovimientoFinanciero::Egreso, 'monto' => 200000]);
+
+    $this->actingAs(User::factory()->administrador()->create())
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSeeInOrder(['Causas vigentes', '75,0%', 'del total de causas'])
+        ->assertSeeInOrder(['Causas cerradas', '25,0%', 'del total de causas'])
+        ->assertSeeInOrder(['Total ingresos', '3,0%', 'del monto demandado'])
+        ->assertSeeInOrder(['Total egresos', '2,0%', 'del monto demandado'])
+        ->assertSeeInOrder(['Saldo financiero', '+1,0%', 'del monto demandado', 'Ingresos cubren el', '150,0%', 'de los egresos']);
+});
