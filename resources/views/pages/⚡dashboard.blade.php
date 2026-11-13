@@ -254,6 +254,26 @@ new #[Title('Panel principal')] class extends Component
     $maxFinanzasMes = max(1, (int) collect($data['finanzasPorMes'])->max(fn (array $month): int => max($month['ingresos'], $month['egresos'])));
     $vigente = collect($data['causasPorEstado'])->firstWhere('nombre', 'VIGENTE');
     $cerrada = collect($data['causasPorEstado'])->firstWhere('nombre', 'CERRADA');
+
+    // Porcentajes de los indicadores: causas sobre el total de causas y montos
+    // sobre el monto total demandado (la exposición de las demandas).
+    $porcentaje = function (int|float $parte, int|float $total, bool $conSigno = false): ?string {
+        if ((float) $total === 0.0) {
+            return null;
+        }
+
+        $valor = $parte / $total * 100;
+        $decimales = $valor !== 0.0 && abs($valor) < 1 ? 2 : 1;
+        $texto = number_format($valor, $decimales, ',', '.').'%';
+
+        return $conSigno && $valor > 0 ? '+'.$texto : $texto;
+    };
+    $pctVigentes = $porcentaje($summary['causasVigentes'], $summary['totalCausas']);
+    $pctCerradas = $porcentaje($summary['causasCerradas'], $summary['totalCausas']);
+    $pctIngresos = $porcentaje($summary['totalIngresos'], $summary['montoDemandado']);
+    $pctEgresos = $porcentaje($summary['totalEgresos'], $summary['montoDemandado']);
+    $pctSaldo = $porcentaje($summary['saldo'], $summary['montoDemandado'], true);
+    $coberturaEgresos = $porcentaje($summary['totalIngresos'], $summary['totalEgresos']);
 @endphp
 
 <div class="flex w-full flex-1 flex-col gap-6">
@@ -331,28 +351,32 @@ new #[Title('Panel principal')] class extends Component
         <flux:card class="grid gap-2">
             <div class="flex items-center justify-between gap-3"><span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Total de causas</span><flux:icon.briefcase class="size-5 text-[#006a61] dark:text-teal-300" /></div>
             <p class="text-3xl font-semibold text-[#091426] dark:text-slate-100">{{ $summary['totalCausas'] }}</p>
+            <p class="text-sm text-zinc-500"><span class="font-semibold text-[#091426] dark:text-slate-100">100%</span> base de comparación</p>
         </flux:card>
         <flux:card class="grid gap-2">
             <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Causas vigentes</span>
             <p class="text-3xl font-semibold text-emerald-700 dark:text-emerald-300">{{ $summary['causasVigentes'] }}</p>
+            @if ($pctVigentes)<p class="text-sm text-zinc-500"><span class="font-semibold text-emerald-700 dark:text-emerald-300">{{ $pctVigentes }}</span> del total de causas</p>@endif
             @if ($vigente)<flux:button size="sm" variant="ghost" :href="route('causas.index', ['estadoCausaFilter' => $vigente['id']])" wire:navigate>Ver causas</flux:button>@endif
         </flux:card>
         <flux:card class="grid gap-2">
             <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Causas cerradas</span>
             <p class="text-3xl font-semibold text-zinc-700 dark:text-zinc-300">{{ $summary['causasCerradas'] }}</p>
+            @if ($pctCerradas)<p class="text-sm text-zinc-500"><span class="font-semibold text-zinc-700 dark:text-zinc-300">{{ $pctCerradas }}</span> del total de causas</p>@endif
             @if ($cerrada)<flux:button size="sm" variant="ghost" :href="route('causas.index', ['estadoCausaFilter' => $cerrada['id']])" wire:navigate>Ver causas</flux:button>@endif
         </flux:card>
         <flux:card class="grid gap-2">
             <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Monto total demandado</span>
             <p class="text-2xl font-semibold text-[#091426] dark:text-slate-100">{{ $this->formatClp($summary['montoDemandado']) }}</p>
+            <p class="text-sm text-zinc-500"><span class="font-semibold text-[#091426] dark:text-slate-100">100%</span> base de comparación de montos</p>
             <flux:badge color="zinc" size="sm" class="w-fit">CLP</flux:badge>
         </flux:card>
     </div>
 
     <div class="grid gap-4 md:grid-cols-3" wire:loading.class="opacity-60">
-        <div class="rounded-sm border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total ingresos</p><p class="mt-2 text-2xl font-semibold text-emerald-800 dark:text-emerald-200">{{ $this->formatClp($summary['totalIngresos']) }}</p></div>
-        <div class="rounded-sm border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Total egresos</p><p class="mt-2 text-2xl font-semibold text-rose-800 dark:text-rose-200">{{ $this->formatClp($summary['totalEgresos']) }}</p></div>
-        <div class="rounded-sm border border-[#006a61]/30 bg-[#006a61]/5 p-5 dark:border-teal-700 dark:bg-teal-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-[#006a61] dark:text-teal-300">Saldo financiero</p><p class="mt-2 text-2xl font-semibold {{ $summary['saldo'] < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[#091426] dark:text-slate-100' }}">{{ $this->formatClp($summary['saldo']) }}</p></div>
+        <div class="rounded-sm border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total ingresos</p><p class="mt-2 text-2xl font-semibold text-emerald-800 dark:text-emerald-200">{{ $this->formatClp($summary['totalIngresos']) }}</p>@if ($pctIngresos)<p class="mt-1 text-sm text-emerald-800/80 dark:text-emerald-200/80"><span class="font-semibold">{{ $pctIngresos }}</span> del monto demandado</p>@endif</div>
+        <div class="rounded-sm border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Total egresos</p><p class="mt-2 text-2xl font-semibold text-rose-800 dark:text-rose-200">{{ $this->formatClp($summary['totalEgresos']) }}</p>@if ($pctEgresos)<p class="mt-1 text-sm text-rose-800/80 dark:text-rose-200/80"><span class="font-semibold">{{ $pctEgresos }}</span> del monto demandado</p>@endif</div>
+        <div class="rounded-sm border border-[#006a61]/30 bg-[#006a61]/5 p-5 dark:border-teal-700 dark:bg-teal-950/40"><p class="text-xs font-semibold uppercase tracking-wide text-[#006a61] dark:text-teal-300">Saldo financiero</p><p class="mt-2 text-2xl font-semibold {{ $summary['saldo'] < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[#091426] dark:text-slate-100' }}">{{ $this->formatClp($summary['saldo']) }}</p>@if ($pctSaldo)<p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300"><span class="font-semibold {{ $summary['saldo'] < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[#006a61] dark:text-teal-300' }}">{{ $pctSaldo }}</span> del monto demandado</p>@endif @if ($coberturaEgresos)<p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Ingresos cubren el <span class="font-semibold {{ $summary['saldo'] < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[#006a61] dark:text-teal-300' }}">{{ $coberturaEgresos }}</span> de los egresos</p>@endif</div>
     </div>
 
     <div class="grid gap-6 xl:grid-cols-2" wire:loading.class="opacity-60">
