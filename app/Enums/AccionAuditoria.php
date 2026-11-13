@@ -14,4 +14,5 @@ enum AccionAuditoria: string
     case RecordatorioReprogramado = 'RECORDATORIO_REPROGRAMADO';
     case RecordatorioCompletado = 'RECORDATORIO_COMPLETADO';
     case RecordatorioCancelado = 'RECORDATORIO_CANCELADO';
+    case MonitoreoDescartado = 'MONITOREO_DESCARTADO';
 }
