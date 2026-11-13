@@ -117,7 +117,8 @@ test('al eliminar una vista en sala se borra su evento de Google Calendar', func
     ]);
 
     $this->actingAs(User::factory()->administrador()->create());
-    $programacion = programacionParaDescartar(Causa::factory()->create(['numero_causa' => '1436-2026']), ['google_calendar_event_id' => 'evento-sala-1']);
+    $programacion = programacionParaDescartar(Causa::factory()->create(['numero_causa' => '1436-2026']));
+    $programacion->forceFill(['google_calendar_event_id' => 'evento-sala-1', 'notificado_at' => now()])->save();
 
     Livewire::test('pages::monitoreo.salas')
         ->call('confirmarDescarte', 'programacion', $programacion->id)
