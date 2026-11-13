@@ -70,7 +70,7 @@ class DetectorMovimientosPjud
                     NormalizadorPjud::nombreTribunal($entrada->tramite),
                 ]));
 
-                $movimiento = PjudMovimiento::query()->createOrFirst(['huella' => $huella], [
+                $movimiento = PjudMovimiento::withTrashed()->createOrFirst(['huella' => $huella], [
                     'causa_id' => $causa->id,
                     'tribunal_pjud_codigo' => $tribunal->codigo,
                     'fecha_estado_diario' => $fecha->toDateString(),

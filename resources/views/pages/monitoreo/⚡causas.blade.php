@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Monitoreo\ComponenteConDescartePjud;
 use App\Enums\Permiso;
 use App\Models\PjudMovimiento;
 use App\Models\User;
@@ -9,10 +10,9 @@ use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Title('Monitoreo de causas')] class extends Component
+new #[Title('Monitoreo de causas')] class extends ComponenteConDescartePjud
 {
     use WithPagination;
 
@@ -121,6 +121,11 @@ new #[Title('Monitoreo de causas')] class extends Component
             ->get();
     }
 
+    protected function despuesDeDescartar(): void
+    {
+        unset($this->movimientos, $this->movimientosPorDia, $this->tribunales, $this->responsables);
+    }
+
     public function limpiarFiltros(): void
     {
         $this->reset('search', 'tribunal', 'responsable', 'desde', 'hasta');
@@ -227,6 +232,11 @@ new #[Title('Monitoreo de causas')] class extends Component
                             @else
                                 <flux:badge color="zinc" size="sm">Sin aviso</flux:badge>
                             @endif
+                            @if ($this->puedeDescartarPjud)
+                                <div class="mt-2">
+                                    <flux:button size="xs" variant="ghost" icon="trash" class="text-red-600! dark:text-red-400!" wire:click="confirmarDescarte('movimiento', {{ $movimiento->id }})">Eliminar</flux:button>
+                                </div>
+                            @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -237,4 +247,6 @@ new #[Title('Monitoreo de causas')] class extends Component
             </flux:table.rows>
         </flux:table>
     </flux:card>
+
+    <x-monitoreo.descartar-modal :registro="$this->registroADescartar" />
 </div>

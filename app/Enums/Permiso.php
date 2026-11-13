@@ -46,6 +46,7 @@ enum Permiso: string
     case RecordatoriosAsignar = 'recordatorios.asignar';
     case MonitoreoVer = 'monitoreo.ver';
     case MonitoreoVerTodas = 'monitoreo.ver-todas';
+    case MonitoreoEliminar = 'monitoreo.eliminar';
 
     public function modulo(): string
     {
@@ -61,7 +62,7 @@ enum Permiso: string
             self::ImportacionesVer, self::ImportacionesEjecutar => 'Importaciones',
             self::AuditoriaVer => 'Auditoría',
             self::RecordatoriosVer, self::RecordatoriosCrear, self::RecordatoriosEditar, self::RecordatoriosCancelar, self::RecordatoriosAsignar => 'Recordatorios',
-            self::MonitoreoVer, self::MonitoreoVerTodas => 'Monitoreo PJUD',
+            self::MonitoreoVer, self::MonitoreoVerTodas, self::MonitoreoEliminar => 'Monitoreo PJUD',
         };
     }
 
@@ -110,6 +111,7 @@ enum Permiso: string
             self::RecordatoriosAsignar => 'Asignar recordatorios',
             self::MonitoreoVer => 'Ver monitoreo PJUD (causas y salas)',
             self::MonitoreoVerTodas => 'Ver monitoreo de todas las causas',
+            self::MonitoreoEliminar => 'Eliminar registros del monitoreo (falsos positivos)',
         };
     }
 

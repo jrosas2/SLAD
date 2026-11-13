@@ -263,6 +263,24 @@ class GoogleCalendarService
         ];
     }
 
+    /**
+     * Elimina un evento del calendario por su id (por ejemplo, el aviso de un
+     * registro del monitoreo PJUD descartado como falso positivo). Si el evento
+     * ya no existe en Google Calendar, no es un error.
+     */
+    public function eliminarEvento(string $eventId): void
+    {
+        if (! $this->isConfigured() || blank($eventId)) {
+            return;
+        }
+
+        $response = $this->request()->delete($this->eventUrl($eventId));
+
+        if (! $response->notFound() && $response->status() !== 410) {
+            $response->throw();
+        }
+    }
+
     private function delete(Recordatorio $recordatorio): void
     {
         if ($recordatorio->google_calendar_event_id === null) {

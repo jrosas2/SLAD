@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Monitoreo\ComponenteConDescartePjud;
 use App\Enums\Permiso;
 use App\Models\PjudMovimiento;
 use App\Models\PjudProgramacion;
@@ -11,10 +12,9 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Title('Monitoreo de salas')] class extends Component
+new #[Title('Monitoreo de salas')] class extends ComponenteConDescartePjud
 {
     use WithPagination;
 
@@ -264,6 +264,16 @@ new #[Title('Monitoreo de salas')] class extends Component
             ->get();
     }
 
+    protected function despuesDeDescartar(): void
+    {
+        unset($this->programaciones, $this->causasPorDia, $this->reprogramadasEnPagina, $this->cortes, $this->salas, $this->responsables, $this->seleccionada, $this->historial, $this->movimientos);
+
+        if ($this->showHistorial && $this->seleccionada === null) {
+            $this->showHistorial = false;
+            $this->historialId = null;
+        }
+    }
+
     public function limpiarFiltros(): void
     {
         $this->reset('search', 'corte', 'sala', 'responsable', 'desde', 'hasta', 'estado');
@@ -390,6 +400,9 @@ new #[Title('Monitoreo de salas')] class extends Component
                         <flux:table.cell align="end" class="whitespace-nowrap">
                             <flux:button size="sm" variant="ghost" icon="building-library" wire:click="verSala({{ $programacion->id }})">Ver sala</flux:button>
                             <flux:button size="sm" variant="ghost" icon="clock" wire:click="verHistorial({{ $programacion->id }})">Historial</flux:button>
+                            @if ($this->puedeDescartarPjud)
+                                <flux:button size="sm" variant="ghost" icon="trash" class="text-red-600! dark:text-red-400!" wire:click="confirmarDescarte('programacion', {{ $programacion->id }})">Eliminar</flux:button>
+                            @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -454,4 +467,5 @@ new #[Title('Monitoreo de salas')] class extends Component
             </div>
         @endif
     </flux:modal>
+    <x-monitoreo.descartar-modal :registro="$this->registroADescartar" />
 </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Monitoreo\ComponenteConDescartePjud;
 use App\Models\Causa;
 use App\Enums\Permiso;
 use App\Enums\TipoMovimientoFinanciero;
@@ -7,6 +8,7 @@ use App\Models\PjudMovimiento;
 use App\Models\PjudProgramacion;
 use App\Models\DocumentoCausa;
 use App\Models\Recordatorio;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Gate;
@@ -14,9 +16,8 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
-use Livewire\Component;
 
-new #[Title('Detalle de causa')] class extends Component
+new #[Title('Detalle de causa')] class extends ComponenteConDescartePjud
 {
     #[Locked]
     public int $causaId;
@@ -190,6 +191,23 @@ new #[Title('Detalle de causa')] class extends Component
             ->get();
     }
 
+    /**
+     * En el detalle sólo se descartan registros de esta causa (la causa ya
+     * está autorizada en mount).
+     *
+     * @param  Builder<PjudMovimiento>|Builder<PjudProgramacion>  $query
+     * @return Builder<PjudMovimiento>|Builder<PjudProgramacion>
+     */
+    protected function limitarRegistrosDescartables(Builder $query): Builder
+    {
+        return $query->where('causa_id', $this->causaId);
+    }
+
+    protected function despuesDeDescartar(): void
+    {
+        unset($this->proximaVistaPjud, $this->ultimoMovimientoPjud, $this->salasImpresion, $this->movimientosPjudImpresion);
+    }
+
     #[On('actuacion-saved')]
     public function refreshCausa(): void
     {
@@ -299,7 +317,12 @@ new #[Title('Detalle de causa')] class extends Component
                                 <span class="text-zinc-500">Relator: {{ $vista->relator }}</span>
                             @endif
                             <span class="text-xs text-zinc-500">Detectada el {{ $vista->detectada_en?->format('d/m/Y H:i') ?? '—' }} · Ingreso PJUD: {{ $vista->numero_ingreso }}</span>
-                            <a href="{{ route('monitoreo.salas', ['search' => $vista->numero_ingreso]) }}" wire:navigate class="w-fit text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">Ver historial de salas</a>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <a href="{{ route('monitoreo.salas', ['search' => $vista->numero_ingreso]) }}" wire:navigate class="w-fit text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">Ver historial de salas</a>
+                                @if ($this->puedeDescartarPjud)
+                                    <button type="button" class="text-xs font-medium text-red-600 hover:underline dark:text-red-400" wire:click="confirmarDescarte('programacion', {{ $vista->id }})">Eliminar</button>
+                                @endif
+                            </div>
                         @else
                             <span class="text-zinc-500">Sin vistas programadas detectadas.</span>
                         @endif
@@ -318,7 +341,12 @@ new #[Title('Detalle de causa')] class extends Component
                                 <span class="whitespace-normal break-words text-zinc-500">{{ $movimiento->detalle }}</span>
                             @endif
                             <span class="text-xs text-zinc-500">Detectado el {{ $movimiento->created_at?->format('d/m/Y H:i') ?? '—' }} · Ingreso PJUD: {{ $movimiento->numero_ingreso }}</span>
-                            <a href="{{ route('monitoreo.causas', ['search' => $movimiento->numero_ingreso]) }}" wire:navigate class="w-fit text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">Ver todos los movimientos</a>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <a href="{{ route('monitoreo.causas', ['search' => $movimiento->numero_ingreso]) }}" wire:navigate class="w-fit text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">Ver todos los movimientos</a>
+                                @if ($this->puedeDescartarPjud)
+                                    <button type="button" class="text-xs font-medium text-red-600 hover:underline dark:text-red-400" wire:click="confirmarDescarte('movimiento', {{ $movimiento->id }})">Eliminar</button>
+                                @endif
+                            </div>
                         @else
                             <span class="text-zinc-500">Sin movimientos detectados en el Estado Diario.</span>
                         @endif
@@ -338,6 +366,8 @@ new #[Title('Detalle de causa')] class extends Component
             <p class="text-sm leading-6 text-zinc-700 dark:text-zinc-300">Sin observaciones importantes.</p>
         @endif
     </flux:card>
+
+    <x-monitoreo.descartar-modal :registro="$this->registroADescartar" />
 
     <flux:card>
         <livewire:causas.actuaciones :causa="$this->causa" :key="'actuaciones-'.$causaId" />

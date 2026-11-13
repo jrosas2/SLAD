@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Movimiento de una causa de SLAD detectado en el Estado Diario del PJUD.
@@ -25,12 +26,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class PjudMovimiento extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'pjud_movimientos';
 
     /** @return BelongsTo<Causa, $this> */
     public function causa(): BelongsTo
     {
         return $this->belongsTo(Causa::class)->withTrashed();
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function descartadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'descartado_por');
     }
 
     /** @return BelongsTo<TribunalPjud, $this> */
