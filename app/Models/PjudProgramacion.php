@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Causa de SLAD detectada en la programación de salas (tabla) de una Corte.
@@ -30,12 +31,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class PjudProgramacion extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'pjud_programaciones';
 
     /** @return BelongsTo<Causa, $this> */
     public function causa(): BelongsTo
     {
         return $this->belongsTo(Causa::class)->withTrashed();
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function descartadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'descartado_por');
     }
 
     /** @return BelongsTo<TribunalPjud, $this> */
@@ -79,6 +88,7 @@ class PjudProgramacion extends Model
             ->whereColumn('posterior.tribunal_pjud_codigo', $tabla.'.tribunal_pjud_codigo')
             ->whereColumn('posterior.tipo_tabla_codigo', $tabla.'.tipo_tabla_codigo')
             ->whereColumn('posterior.id', '!=', $tabla.'.id')
+            ->whereNull('posterior.deleted_at')
             ->whereColumn('posterior.detectada_en', '>', $tabla.'.detectada_en')
             ->whereRaw('DATE(posterior.detectada_en) <= DATE('.$tabla.'.fecha_vista)')
             ->where(fn ($cambio) => $cambio
