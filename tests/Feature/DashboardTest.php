@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Materia;
 use App\Models\User;
 
 test('guests are redirected to the login page', function () {
@@ -31,4 +32,17 @@ test('la impresión del panel principal lleva la cabecera con el logo de SLAD', 
         ->assertSee('images/logo-slad-impresion.png', false)
         ->assertSee('Panel administrativo y jurídico — Estadísticas')
         ->assertSee('.dashboard-print-header { display: none; }', false);
+});
+
+test('la impresión del panel principal muestra los filtros aplicados', function () {
+    $materia = Materia::factory()->create(['nombre' => 'CIVIL']);
+
+    $this->actingAs(User::factory()->administrador()->create())
+        ->get(route('dashboard', ['anio' => 2026, 'materiaFilter' => $materia->id]))
+        ->assertOk()
+        ->assertSee('Año: 2026 · Materia: CIVIL');
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Sin filtros (todos los registros visibles)');
 });
