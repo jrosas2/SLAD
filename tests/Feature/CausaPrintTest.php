@@ -135,7 +135,8 @@ test('la impresión incluye todas las actuaciones, documentos, recordatorios y e
     }
 
     $respuesta
-        ->assertSee('Sin observaciones importantes registradas.')
+        ->assertDontSee('Observación registrada')
+        ->assertDontSee('<h2>Observación importante</h2>', false)
         ->assertSee('Monitoreo Poder Judicial (PJUD)')
         ->assertSee('2 providencias dictadas este día')
         ->assertSee('Documentos adjuntos')
