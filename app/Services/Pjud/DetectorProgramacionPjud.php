@@ -62,7 +62,7 @@ class DetectorProgramacionPjud
                     $pjud['numero'].'-'.($pjud['anio'] ?? ''),
                 ]));
 
-                $programacion = PjudProgramacion::query()->createOrFirst(['huella' => $huella], [
+                $programacion = PjudProgramacion::withTrashed()->createOrFirst(['huella' => $huella], [
                     'causa_id' => $causa->id,
                     'tribunal_pjud_codigo' => $corte->codigo,
                     'tribunal_nombre' => mb_substr($corte->nombre, 0, 180),
