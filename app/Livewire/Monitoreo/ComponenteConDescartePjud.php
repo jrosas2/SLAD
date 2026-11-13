@@ -122,7 +122,10 @@ abstract class ComponenteConDescartePjud extends Component
 
     private function registroDescartable(string $tipo, int $id): PjudMovimiento|PjudProgramacion
     {
-        return $this->consultaDescartable($tipo)->findOrFail($id);
+        $registro = $this->consultaDescartable($tipo)->find($id);
+        abort_if($registro === null, 404);
+
+        return $registro;
     }
 
     /** @return Builder<PjudMovimiento>|Builder<PjudProgramacion> */
