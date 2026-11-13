@@ -23,3 +23,12 @@ test('inactive authenticated users are logged out', function () {
     $response->assertRedirect(route('login'));
     $this->assertGuest();
 });
+
+test('la impresión del panel principal lleva la cabecera con el logo de SLAD', function () {
+    $this->actingAs(User::factory()->administrador()->create())
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('images/logo-slad-impresion.png', false)
+        ->assertSee('Panel administrativo y jurídico — Estadísticas')
+        ->assertSee('.dashboard-print-header { display: none; }', false);
+});

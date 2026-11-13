@@ -234,6 +234,12 @@ new #[Title('Panel principal')] class extends Component
 @endphp
 
 <div class="flex w-full flex-1 flex-col gap-6">
+    <header class="dashboard-print-header" aria-hidden="true">
+        <img class="dashboard-print-logo" src="{{ asset('images/logo-slad-impresion.png') }}" alt="SLAD — Sistema Logístico de Administración de Causas">
+        <h1>Panel administrativo y jurídico — Estadísticas</h1>
+        <div><strong>Fecha de impresión:</strong> {{ now()->format('d-m-Y H:i') }} · <strong>Impreso por:</strong> {{ auth()->user()?->name }}</div>
+    </header>
+
     <div class="flex flex-col justify-between gap-4 border-b border-[#c5c6cd] pb-6 lg:flex-row lg:items-end dark:border-slate-700">
         <div class="grid gap-2">
             <flux:badge color="green" size="sm" class="w-fit">Información actualizada</flux:badge>
@@ -490,7 +496,12 @@ new #[Title('Panel principal')] class extends Component
     </flux:card>
 
     <style>
+    .dashboard-print-header { display: none; }
+
     @media print {
+        .dashboard-print-header { display: block !important; border-bottom: 2px solid #111; margin-bottom: 4mm; padding-bottom: 3mm; font-family: Arial, sans-serif; font-size: 9pt; }
+        .dashboard-print-logo { display: block; height: 16mm; width: auto; margin: 0 0 1mm; }
+        .dashboard-print-header h1 { font-size: 13pt; margin: 3mm 0 2mm; text-transform: uppercase; }
         @page { size: 8.5in 13in; margin: 8mm; }
 
         [data-flux-sidebar], [data-flux-sidebar-backdrop], [data-flux-sidebar-profile], [data-flux-sidebar-toggle], [data-flux-header], ui-sidebar, ui-header, ui-sidebar-toggle, nav, .slad-sidebar, .dashboard-filters, .dashboard-print-control, .dashboard-profile { display: none !important; }
