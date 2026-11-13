@@ -327,12 +327,16 @@ new #[Title('Detalle de causa')] class extends Component
             </div>
         @endif
 
-        <div class="grid gap-1">
-            @if ($this->puedeVerMonitoreo)
-                <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Observación registrada</span>
-            @endif
-            <p class="whitespace-pre-line text-sm leading-6 text-zinc-700 dark:text-zinc-300">{{ $this->causa->observacion_importante ?? 'Sin observaciones importantes.' }}</p>
-        </div>
+        @if (filled($this->causa->observacion_importante))
+            <div class="grid gap-1">
+                @if ($this->puedeVerMonitoreo)
+                    <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Observación registrada</span>
+                @endif
+                <p class="whitespace-pre-line text-sm leading-6 text-zinc-700 dark:text-zinc-300">{{ $this->causa->observacion_importante }}</p>
+            </div>
+        @elseif (! $this->puedeVerMonitoreo)
+            <p class="text-sm leading-6 text-zinc-700 dark:text-zinc-300">Sin observaciones importantes.</p>
+        @endif
     </flux:card>
 
     <flux:card>
@@ -389,10 +393,12 @@ new #[Title('Detalle de causa')] class extends Component
             </dl>
         </section>
 
-        <section class="print-section">
-            <h2>Observación importante</h2>
-            <p class="print-observation">{{ filled($this->causa->observacion_importante) ? $this->causa->observacion_importante : 'Sin observaciones importantes registradas.' }}</p>
-        </section>
+        @if (filled($this->causa->observacion_importante))
+            <section class="print-section">
+                <h2>Observación importante</h2>
+                <p class="print-observation">{{ $this->causa->observacion_importante }}</p>
+            </section>
+        @endif
 
         @if ($this->puedeVerMonitoreo)
             <section class="print-section">
