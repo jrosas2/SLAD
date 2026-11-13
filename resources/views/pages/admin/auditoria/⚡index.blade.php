@@ -111,6 +111,8 @@ new #[Title('Bitácora de auditoría')] class extends Component {
             'estado_causa_id' => 'Estado de causa',
             'estado_procesal_id' => 'Estado procesal',
             'monto_demandado' => 'Monto demandado',
+            'descartado_por' => 'Descartado por',
+            'motivo_descarte' => 'Motivo del descarte',
             default => Str::headline($campo),
         };
     }
@@ -119,6 +121,12 @@ new #[Title('Bitácora de auditoría')] class extends Component {
     {
         if ($valor === null || $valor === '') {
             return '—';
+        }
+
+        if ($campo === 'descartado_por' && is_numeric($valor)) {
+            $nombre = User::query()->whereKey($valor)->value('name');
+
+            return $nombre === null ? '#'.$valor : $nombre.' (#'.$valor.')';
         }
 
         if (str_ends_with($campo, '_id') && is_numeric($valor)) {
@@ -177,7 +185,7 @@ new #[Title('Bitácora de auditoría')] class extends Component {
                     <flux:table.row :key="$registro->id">
                         <flux:table.cell class="whitespace-nowrap">{{ $registro->created_at?->format('d/m/Y H:i') }}</flux:table.cell>
                         <flux:table.cell>{{ $registro->usuario?->name ?? 'Sistema' }}</flux:table.cell>
-                        <flux:table.cell><flux:badge :color="$registro->accion === AccionAuditoria::Eliminado ? 'red' : ($registro->accion === AccionAuditoria::Creado ? 'green' : 'blue')" size="sm">{{ $registro->accion->value }}</flux:badge></flux:table.cell>
+                        <flux:table.cell><flux:badge :color="in_array($registro->accion, [AccionAuditoria::Eliminado, AccionAuditoria::MonitoreoDescartado], true) ? 'red' : ($registro->accion === AccionAuditoria::Creado ? 'green' : 'blue')" size="sm">{{ $registro->accion->value }}</flux:badge></flux:table.cell>
                         <flux:table.cell>{{ $this->etiquetaModelo($registro->modelo) }}</flux:table.cell>
                         <flux:table.cell><span>#{{ $registro->modelo_id }}</span>@if ($registro->causa)<br><span class="text-xs text-zinc-500">{{ $registro->causa->numero_causa ?? $registro->causa->nombre }}</span>@endif</flux:table.cell>
                         <flux:table.cell align="end"><flux:button size="sm" variant="ghost" icon="eye" wire:click="verDetalle({{ $registro->id }})">Ver</flux:button></flux:table.cell>
