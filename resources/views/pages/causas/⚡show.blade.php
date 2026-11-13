@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\Causa;
+use App\Enums\Permiso;
 use App\Enums\TipoMovimientoFinanciero;
+use App\Models\PjudMovimiento;
+use App\Models\PjudProgramacion;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
@@ -67,6 +70,47 @@ new #[Title('Detalle de causa')] class extends Component
             'totalEgresos' => $totalEgresos,
             'saldo' => $totalIngresos - $totalEgresos,
         ];
+    }
+
+    #[Computed]
+    public function puedeVerMonitoreo(): bool
+    {
+        return (bool) auth()->user()?->can(Permiso::MonitoreoVer->value);
+    }
+
+    /**
+     * Próxima vista de la causa en la tabla de una Corte, según el monitoreo
+     * PJUD (se descartan las que fueron reemplazadas por una reprogramación).
+     */
+    #[Computed]
+    public function proximaVistaPjud(): ?PjudProgramacion
+    {
+        if (! $this->puedeVerMonitoreo) {
+            return null;
+        }
+
+        return PjudProgramacion::query()
+            ->where('causa_id', $this->causaId)
+            ->whereDate('fecha_vista', '>=', today())
+            ->whereNotIn('id', PjudProgramacion::query()->select('id')->where('causa_id', $this->causaId)->reprogramadas())
+            ->orderBy('fecha_vista')
+            ->orderBy('numero_orden')
+            ->first();
+    }
+
+    /** Último movimiento de la causa detectado en el Estado Diario del PJUD. */
+    #[Computed]
+    public function ultimoMovimientoPjud(): ?PjudMovimiento
+    {
+        if (! $this->puedeVerMonitoreo) {
+            return null;
+        }
+
+        return PjudMovimiento::query()
+            ->where('causa_id', $this->causaId)
+            ->orderByDesc('fecha_estado_diario')
+            ->orderByDesc('id')
+            ->first();
     }
 
     #[On('actuacion-saved')]
@@ -159,7 +203,59 @@ new #[Title('Detalle de causa')] class extends Component
 
     <flux:card class="grid gap-4">
         <flux:heading size="lg">Observaciones importantes</flux:heading>
-        <p class="whitespace-pre-line text-sm leading-6 text-zinc-700 dark:text-zinc-300">{{ $this->causa->observacion_importante ?? 'Sin observaciones importantes.' }}</p>
+
+        @if ($this->puedeVerMonitoreo)
+            <div class="grid gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:badge color="blue" size="sm">Monitoreo PJUD</flux:badge>
+                    <span class="text-xs text-zinc-500">Información automática obtenida del Poder Judicial</span>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-1 text-sm">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Próxima vista en sala</span>
+                        @if ($this->proximaVistaPjud)
+                            @php($vista = $this->proximaVistaPjud)
+                            <span class="font-semibold">{{ ucfirst($vista->fecha_vista->translatedFormat('l j \d\e F \d\e Y')) }}</span>
+                            <span class="whitespace-normal break-words">{{ $vista->tribunal_nombre }} · {{ $vista->sala }} · Tabla {{ $vista->tipo_tabla }}@if ($vista->numero_orden) · N° orden {{ $vista->numero_orden }}@endif</span>
+                            @if ($vista->relator)
+                                <span class="text-zinc-500">Relator: {{ $vista->relator }}</span>
+                            @endif
+                            <span class="text-xs text-zinc-500">Detectada el {{ $vista->detectada_en?->format('d/m/Y H:i') ?? '—' }} · Ingreso PJUD: {{ $vista->numero_ingreso }}</span>
+                            <a href="{{ route('monitoreo.salas', ['search' => $vista->numero_ingreso]) }}" wire:navigate class="w-fit text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">Ver historial de salas</a>
+                        @else
+                            <span class="text-zinc-500">Sin vistas programadas detectadas.</span>
+                        @endif
+                    </div>
+
+                    <div class="grid gap-1 text-sm">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Último movimiento PJUD</span>
+                        @if ($this->ultimoMovimientoPjud)
+                            @php($movimiento = $this->ultimoMovimientoPjud)
+                            <span class="font-semibold">{{ ucfirst($movimiento->fecha_estado_diario->translatedFormat('l j \d\e F \d\e Y')) }}</span>
+                            <span class="whitespace-normal break-words">{{ $movimiento->tribunal_nombre }}</span>
+                            @if ($movimiento->descripcionTramite())
+                                <span>{{ $movimiento->descripcionTramite() }}</span>
+                            @endif
+                            @if ($movimiento->detalle)
+                                <span class="whitespace-normal break-words text-zinc-500">{{ $movimiento->detalle }}</span>
+                            @endif
+                            <span class="text-xs text-zinc-500">Detectado el {{ $movimiento->created_at?->format('d/m/Y H:i') ?? '—' }} · Ingreso PJUD: {{ $movimiento->numero_ingreso }}</span>
+                            <a href="{{ route('monitoreo.causas', ['search' => $movimiento->numero_ingreso]) }}" wire:navigate class="w-fit text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">Ver todos los movimientos</a>
+                        @else
+                            <span class="text-zinc-500">Sin movimientos detectados en el Estado Diario.</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <div class="grid gap-1">
+            @if ($this->puedeVerMonitoreo)
+                <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Observación registrada</span>
+            @endif
+            <p class="whitespace-pre-line text-sm leading-6 text-zinc-700 dark:text-zinc-300">{{ $this->causa->observacion_importante ?? 'Sin observaciones importantes.' }}</p>
+        </div>
     </flux:card>
 
     <flux:card>
