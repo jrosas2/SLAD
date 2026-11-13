@@ -159,6 +159,29 @@ new #[Title('Panel principal')] class extends Component
             ->get();
     }
 
+    /**
+     * Filtros aplicados, en texto legible, para la cabecera de la impresión.
+     *
+     * @return list<string>
+     */
+    #[Computed]
+    public function filtrosImpresion(): array
+    {
+        $nombre = fn (Collection $opciones, string $valor): ?string => $valor === '' ? null : $opciones->firstWhere('id', (int) $valor)?->nombre;
+        $responsable = $this->responsableFilter === '' ? null : $this->responsables->firstWhere('id', (int) $this->responsableFilter)?->etiquetaResponsable();
+
+        return array_values(array_filter([
+            'Año: '.($this->year === '' ? 'Todos los años' : $this->year),
+            ($materia = $nombre($this->materias, $this->materiaFilter)) ? 'Materia: '.$materia : null,
+            ($direccion = $nombre($this->direcciones, $this->direccionFilter)) ? 'Dirección: '.$direccion : null,
+            $responsable ? 'Responsable: '.$responsable : null,
+            ($estadoCausa = $nombre($this->estadosCausa, $this->estadoCausaFilter)) ? 'Estado de causa: '.$estadoCausa : null,
+            ($estadoProcesal = $nombre($this->estadosProcesales, $this->estadoProcesalFilter)) ? 'Estado procesal: '.$estadoProcesal : null,
+            ($ciudad = $nombre($this->ciudades, $this->ciudadFilter)) ? 'Ciudad: '.$ciudad : null,
+            ($juzgado = $nombre($this->juzgados, $this->juzgadoFilter)) ? 'Juzgado: '.$juzgado : null,
+        ]));
+    }
+
     #[Computed]
     public function activeFiltersCount(): int
     {
@@ -238,6 +261,7 @@ new #[Title('Panel principal')] class extends Component
         <img class="dashboard-print-logo" src="{{ asset('images/logo-slad-impresion.png') }}" alt="SLAD — Sistema Logístico de Administración de Causas">
         <h1>Panel administrativo y jurídico — Estadísticas</h1>
         <div><strong>Fecha de impresión:</strong> {{ now()->format('d-m-Y H:i') }} · <strong>Impreso por:</strong> {{ auth()->user()?->name }}</div>
+        <div><strong>Filtros:</strong> {{ $this->activeFiltersCount === 0 && $year === '' ? 'Sin filtros (todos los registros visibles)' : implode(' · ', $this->filtrosImpresion) }}</div>
     </header>
 
     <div class="flex flex-col justify-between gap-4 border-b border-[#c5c6cd] pb-6 lg:flex-row lg:items-end dark:border-slate-700">
