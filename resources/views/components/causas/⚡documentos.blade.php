@@ -114,7 +114,7 @@ new class extends Component
 };
 ?>
 
-<div class="grid gap-5">
+<div class="grid grid-cols-1 gap-5">
     <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
         <div>
             <flux:heading size="lg">Documentos adjuntos</flux:heading>
@@ -125,7 +125,7 @@ new class extends Component
 
     @can('create', DocumentoCausa::class)
         <form wire:submit="guardar" class="grid gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-            <div class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
                 <flux:input wire:model="archivo" type="file" label="PDF" accept="application/pdf,.pdf" />
                 <flux:textarea wire:model="descripcion" label="Descripción (opcional)" rows="1" />
                 <flux:button type="submit" variant="primary" icon="arrow-up-tray" wire:loading.attr="disabled" wire:target="archivo,guardar">Adjuntar PDF</flux:button>
@@ -136,13 +136,13 @@ new class extends Component
         </form>
     @endcan
 
-    <div class="grid gap-3">
+    <div class="grid grid-cols-1 gap-3">
         @forelse ($this->documentos as $documento)
             <article class="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700 lg:flex-row lg:items-center lg:justify-between">
                 <div class="min-w-0">
-                    <div class="flex items-center gap-2">
+                    <div class="flex min-w-0 items-center gap-2">
                         <flux:icon.document-text class="size-5 shrink-0 text-red-600" />
-                        <p class="truncate font-medium">{{ $documento->nombre_original }}</p>
+                        <p class="min-w-0 truncate font-medium" title="{{ $documento->nombre_original }}">{{ $documento->nombre_original }}</p>
                         @if ($documento->comprimido)
                             <flux:badge color="green" size="sm">Comprimido</flux:badge>
                         @endif
