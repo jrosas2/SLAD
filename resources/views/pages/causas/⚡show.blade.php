@@ -392,8 +392,7 @@ new #[Title('Detalle de causa')] class extends ComponenteConDescartePjud
 
     <section class="print-only printable-cause" aria-label="Detalle imprimible de causa">
         <header class="print-header">
-            <p class="print-brand">SLAD</p>
-            <p>Sistema Logístico de Administración de Derecho</p>
+            <img class="print-brand" src="{{ asset('images/logo-slad-impresion.png') }}" alt="SLAD — Sistema Logístico de Administración de Causas">
             <h1>Detalle de causa</h1>
             <div class="print-header-meta">
                 <span><strong>N.º de causa:</strong> {{ $this->causa->numero_causa ?? '—' }}</span>
@@ -582,7 +581,7 @@ new #[Title('Detalle de causa')] class extends ComponenteConDescartePjud
         .print-only { display: block !important; }
         .printable-cause { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.45; }
         .print-header { border-bottom: 2px solid #111; margin-bottom: 7mm; padding-bottom: 4mm; }
-        .print-brand { font-size: 18pt; font-weight: 700; letter-spacing: .08em; margin: 0; }
+        .print-brand { display: block; height: 16mm; width: auto; margin: 0 0 1mm; }
         .print-header p:not(.print-brand) { margin: 0; }
         .print-header h1 { font-size: 15pt; margin: 5mm 0 3mm; text-transform: uppercase; }
         .print-header-meta { display: flex; justify-content: space-between; gap: 6mm; font-size: 9pt; }
