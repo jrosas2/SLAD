@@ -183,3 +183,39 @@ test('muestra la cantidad de providencias del Estado Diario como texto legible',
     expect((new PjudMovimiento(['tramite' => 'Autos en relación']))->descripcionTramite())->toBe('Autos en relación')
         ->and((new PjudMovimiento(['tramite' => null]))->descripcionTramite())->toBeNull();
 });
+
+test('observaciones importantes de la causa muestran la próxima vista y el último movimiento del PJUD', function () {
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create(['numero_causa' => '1436-2026', 'observacion_importante' => 'Revisar plazo de apelación']);
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-05 15:00:00'));
+    programacionSala($causa, '2026-11-12', '1'); // reemplazada por la reprogramación
+    $this->travelTo(CarbonImmutable::parse('2026-11-08 15:00:00'));
+    programacionSala($causa, '2026-11-19', '2');
+    movimientoEstadoDiario($causa, '2026-11-06', 'Autos en relación');
+    movimientoEstadoDiario($causa, '2026-11-07', '2');
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 15:00:00'));
+
+    $this->actingAs($administrador)
+        ->get(route('causas.show', $causa))
+        ->assertOk()
+        ->assertSee('Monitoreo PJUD')
+        ->assertSee('Jueves 19 de noviembre de 2026')
+        ->assertSee('SEGUNDA')
+        ->assertDontSee('Jueves 12 de noviembre de 2026')
+        ->assertSee('Sábado 7 de noviembre de 2026')
+        ->assertSee('2 providencias dictadas este día')
+        ->assertSee('Revisar plazo de apelación');
+});
+
+test('sin el permiso monitoreo.ver la causa no muestra el bloque del monitoreo', function () {
+    $usuario = User::factory()->administrador()->create();
+    $usuario->roles->each(fn ($rol) => $rol->revokePermissionTo(Permission::findOrCreate(Permiso::MonitoreoVer->value, 'web')));
+    $causa = Causa::factory()->create(['numero_causa' => '1436-2026']);
+    programacionSala($causa, '2026-11-19', '2');
+
+    $this->actingAs($usuario->fresh())
+        ->get(route('causas.show', $causa))
+        ->assertOk()
+        ->assertDontSee('Próxima vista en sala');
+});
