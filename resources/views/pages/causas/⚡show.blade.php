@@ -5,6 +5,9 @@ use App\Enums\Permiso;
 use App\Enums\TipoMovimientoFinanciero;
 use App\Models\PjudMovimiento;
 use App\Models\PjudProgramacion;
+use App\Models\DocumentoCausa;
+use App\Models\Recordatorio;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
@@ -45,7 +48,8 @@ new #[Title('Detalle de causa')] class extends Component
                     ->orderBy('fecha')
                     ->orderBy('id'),
                 'movimientosFinancieros' => fn (HasMany $query) => $query
-                    ->select(['id', 'causa_id', 'tipo', 'monto', 'fecha', 'observacion'])
+                    ->select(['id', 'causa_id', 'tipo', 'monto', 'fecha', 'observacion', 'created_by'])
+                    ->with('creador:id,name')
                     ->reorder()
                     ->orderBy('fecha')
                     ->orderBy('id'),
@@ -113,6 +117,79 @@ new #[Title('Detalle de causa')] class extends Component
             ->first();
     }
 
+    /**
+     * Agendamientos de la causa en salas de las Cortes, para la impresión:
+     * todos, con las vistas reemplazadas por una reprogramación marcadas.
+     *
+     * @return array{programaciones: Collection<int, PjudProgramacion>, reprogramadas: list<int>}
+     */
+    #[Computed]
+    public function salasImpresion(): array
+    {
+        if (! $this->puedeVerMonitoreo) {
+            return ['programaciones' => new Collection, 'reprogramadas' => []];
+        }
+
+        return [
+            'programaciones' => PjudProgramacion::query()
+                ->where('causa_id', $this->causaId)
+                ->orderByDesc('fecha_vista')
+                ->orderByDesc('id')
+                ->get(),
+            'reprogramadas' => PjudProgramacion::query()
+                ->where('causa_id', $this->causaId)
+                ->reprogramadas()
+                ->pluck('id')
+                ->all(),
+        ];
+    }
+
+    /** @return Collection<int, PjudMovimiento> */
+    #[Computed]
+    public function movimientosPjudImpresion(): Collection
+    {
+        if (! $this->puedeVerMonitoreo) {
+            return new Collection;
+        }
+
+        return PjudMovimiento::query()
+            ->where('causa_id', $this->causaId)
+            ->orderByDesc('fecha_estado_diario')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /** @return Collection<int, DocumentoCausa> */
+    #[Computed]
+    public function documentosImpresion(): Collection
+    {
+        if (! auth()->user()?->can(Permiso::DocumentosVer->value)) {
+            return new Collection;
+        }
+
+        return DocumentoCausa::query()
+            ->with('usuario:id,name')
+            ->where('causa_id', $this->causaId)
+            ->latest()
+            ->get();
+    }
+
+    /** @return Collection<int, Recordatorio> */
+    #[Computed]
+    public function recordatoriosImpresion(): Collection
+    {
+        if (! auth()->user()?->can('viewAny', Recordatorio::class)) {
+            return new Collection;
+        }
+
+        return Recordatorio::query()
+            ->with(['usuario:id,name', 'creador:id,name'])
+            ->where('causa_id', $this->causaId)
+            ->orderBy('fecha_hora')
+            ->orderBy('id')
+            ->get();
+    }
+
     #[On('actuacion-saved')]
     public function refreshCausa(): void
     {
@@ -122,7 +199,7 @@ new #[Title('Detalle de causa')] class extends Component
 }; ?>
 
 <div class="flex w-full flex-1 flex-col gap-6">
-    <div class="screen-only grid gap-6">
+    <div class="screen-only grid grid-cols-1 gap-6">
     <div class="flex flex-col justify-between gap-4 border-b border-[#c5c6cd] pb-6 sm:flex-row sm:items-end dark:border-slate-700">
         <div class="grid gap-2">
             <flux:badge color="blue" size="sm" class="w-fit">Resumen del expediente</flux:badge>
@@ -212,7 +289,7 @@ new #[Title('Detalle de causa')] class extends Component
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-1 text-sm">
+                    <div class="grid content-start gap-1 text-sm">
                         <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Próxima vista en sala</span>
                         @if ($this->proximaVistaPjud)
                             @php($vista = $this->proximaVistaPjud)
@@ -228,7 +305,7 @@ new #[Title('Detalle de causa')] class extends Component
                         @endif
                     </div>
 
-                    <div class="grid gap-1 text-sm">
+                    <div class="grid content-start gap-1 text-sm">
                         <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Último movimiento PJUD</span>
                         @if ($this->ultimoMovimientoPjud)
                             @php($movimiento = $this->ultimoMovimientoPjud)
@@ -314,8 +391,69 @@ new #[Title('Detalle de causa')] class extends Component
 
         <section class="print-section">
             <h2>Observación importante</h2>
-            <p class="print-observation">{{ $this->causa->observacion_importante ?? '—' }}</p>
+            <p class="print-observation">{{ filled($this->causa->observacion_importante) ? $this->causa->observacion_importante : 'Sin observaciones importantes registradas.' }}</p>
         </section>
+
+        @if ($this->puedeVerMonitoreo)
+            <section class="print-section">
+                <h2>Monitoreo Poder Judicial (PJUD)</h2>
+                <dl class="print-details">
+                    <div class="print-detail">
+                        <dt>Próxima vista en sala</dt>
+                        <dd>
+                            @if ($this->proximaVistaPjud)
+                                {{ $this->proximaVistaPjud->fecha_vista->format('d-m-Y') }} · {{ $this->proximaVistaPjud->tribunal_nombre }} · {{ $this->proximaVistaPjud->sala }}@if ($this->proximaVistaPjud->numero_orden) · N° orden {{ $this->proximaVistaPjud->numero_orden }}@endif
+                            @else
+                                Sin vistas programadas detectadas.
+                            @endif
+                        </dd>
+                    </div>
+                    <div class="print-detail">
+                        <dt>Último movimiento PJUD</dt>
+                        <dd>
+                            @if ($this->ultimoMovimientoPjud)
+                                {{ $this->ultimoMovimientoPjud->fecha_estado_diario->format('d-m-Y') }} · {{ $this->ultimoMovimientoPjud->tribunal_nombre }}@if ($this->ultimoMovimientoPjud->descripcionTramite()) · {{ $this->ultimoMovimientoPjud->descripcionTramite() }}@endif
+                            @else
+                                Sin movimientos detectados.
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+
+                <h3>Agendamientos en salas</h3>
+                @if ($this->salasImpresion['programaciones']->isNotEmpty())
+                    <table class="print-table">
+                        <thead><tr><th>Fecha vista</th><th>Corte / sala</th><th>Tabla · N° orden</th><th>Relator</th><th>Estado</th><th>Detectada</th></tr></thead>
+                        <tbody>
+                            @foreach ($this->salasImpresion['programaciones'] as $vista)
+                                <tr>
+                                    <td>{{ $vista->fecha_vista->format('d-m-Y') }}</td>
+                                    <td>{{ $vista->tribunal_nombre }} · {{ $vista->sala }}</td>
+                                    <td>{{ $vista->tipo_tabla }}{{ $vista->numero_orden ? ' · '.$vista->numero_orden : '' }}</td>
+                                    <td>{{ $vista->relator ?? '—' }}</td>
+                                    <td>{{ in_array($vista->id, $this->salasImpresion['reprogramadas'], true) ? 'Reprogramada' : ($vista->fecha_vista->isBefore(today()) ? 'Fecha pasada' : 'Próxima') }}</td>
+                                    <td>{{ $vista->detectada_en?->format('d-m-Y H:i') ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p class="print-empty">Sin agendamientos en salas detectados.</p>
+                @endif
+
+                <h3>Movimientos en el Estado Diario</h3>
+                @forelse ($this->movimientosPjudImpresion as $movimientoPjud)
+                    <article class="print-entry">
+                        <div class="print-entry-meta"><strong>{{ $movimientoPjud->fecha_estado_diario->format('d-m-Y') }}</strong><span>{{ $movimientoPjud->tribunal_nombre }}</span></div>
+                        @if ($movimientoPjud->descripcionTramite())<p>{{ $movimientoPjud->descripcionTramite() }}</p>@endif
+                        @if ($movimientoPjud->detalle)<p>{{ $movimientoPjud->detalle }}</p>@endif
+                        <small>Ingreso PJUD: {{ $movimientoPjud->numero_ingreso }} · Detectado: {{ $movimientoPjud->created_at?->format('d-m-Y H:i') ?? '—' }} · {{ $movimientoPjud->notificado_at ? 'Avisado en Google Calendar' : 'Sin aviso en Google Calendar' }}</small>
+                    </article>
+                @empty
+                    <p class="print-empty">Sin movimientos detectados en el Estado Diario.</p>
+                @endforelse
+            </section>
+        @endif
 
         <section class="print-section">
             <h2>Actuaciones</h2>
@@ -334,7 +472,7 @@ new #[Title('Detalle de causa')] class extends Component
             <h2>Movimientos financieros</h2>
             @if ($this->causa->movimientosFinancieros->isNotEmpty())
                 <table class="print-table">
-                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th><th>Observación</th></tr></thead>
+                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th><th>Observación</th><th>Registrado por</th></tr></thead>
                     <tbody>
                         @foreach ($this->causa->movimientosFinancieros as $movimiento)
                             <tr>
@@ -342,6 +480,7 @@ new #[Title('Detalle de causa')] class extends Component
                                 <td>{{ $movimiento->tipo->value }}</td>
                                 <td class="print-amount">{{ '$'.number_format((float) $movimiento->monto, 0, ',', '.') }}</td>
                                 <td>{{ $movimiento->observacion ?? '—' }}</td>
+                                <td>{{ $movimiento->creador?->name ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -355,6 +494,44 @@ new #[Title('Detalle de causa')] class extends Component
                 <p class="print-empty">No hay movimientos financieros registrados.</p>
             @endif
         </section>
+
+        @if (auth()->user()?->can(Permiso::DocumentosVer->value))
+            <section class="print-section">
+                <h2>Documentos adjuntos</h2>
+                @if ($this->documentosImpresion->isNotEmpty())
+                    <table class="print-table">
+                        <thead><tr><th>Documento</th><th>Descripción</th><th>Fecha</th><th>Subido por</th></tr></thead>
+                        <tbody>
+                            @foreach ($this->documentosImpresion as $documento)
+                                <tr>
+                                    <td>{{ $documento->nombre_original }}</td>
+                                    <td>{{ $documento->descripcion ?? '—' }}</td>
+                                    <td>{{ $documento->created_at?->format('d-m-Y H:i') ?? '—' }}</td>
+                                    <td>{{ $documento->usuario?->name ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p class="print-empty">No hay documentos adjuntos.</p>
+                @endif
+            </section>
+        @endif
+
+        @can('viewAny', \App\Models\Recordatorio::class)
+            <section class="print-section">
+                <h2>Recordatorios</h2>
+                @forelse ($this->recordatoriosImpresion as $recordatorio)
+                    <article class="print-entry">
+                        <div class="print-entry-meta"><strong>{{ $recordatorio->fecha_hora?->format('d-m-Y H:i') ?? '—' }}</strong><span>{{ $recordatorio->titulo }}</span><span>{{ ucfirst(mb_strtolower($recordatorio->estado->value)) }}</span></div>
+                        @if ($recordatorio->descripcion)<p>{{ $recordatorio->descripcion }}</p>@endif
+                        <small>Asignado a: {{ $recordatorio->usuario?->name ?? '—' }} · Creado por: {{ $recordatorio->creador?->name ?? '—' }} · {{ $recordatorio->created_at?->format('d-m-Y H:i') ?? '—' }}</small>
+                    </article>
+                @empty
+                    <p class="print-empty">No hay recordatorios registrados.</p>
+                @endforelse
+            </section>
+        @endcan
     </section>
 
     <style>
@@ -363,7 +540,7 @@ new #[Title('Detalle de causa')] class extends Component
     @media print {
         @page { size: 8.5in 13in; margin: 12mm; }
 
-        [data-flux-sidebar], ui-sidebar, ui-sidebar-toggle, ui-header, nav, .screen-only { display: none !important; }
+        [data-flux-sidebar], [data-flux-header], ui-sidebar, ui-sidebar-toggle, ui-header, ui-toast-group, nav, .screen-only { display: none !important; }
         html, body, .slad-main { min-height: 0 !important; height: auto !important; background: #fff !important; color: #111 !important; }
         .slad-main > [wire\:id] { flex: none !important; }
         .print-only { display: block !important; }
@@ -373,7 +550,9 @@ new #[Title('Detalle de causa')] class extends Component
         .print-header p:not(.print-brand) { margin: 0; }
         .print-header h1 { font-size: 15pt; margin: 5mm 0 3mm; text-transform: uppercase; }
         .print-header-meta { display: flex; justify-content: space-between; gap: 6mm; font-size: 9pt; }
-        .print-section, .print-entry, .print-detail, .print-totals { break-inside: avoid; page-break-inside: avoid; }
+        .print-entry, .print-detail, .print-totals { break-inside: avoid; page-break-inside: avoid; }
+        .print-section h2, .print-section h3 { break-after: avoid; page-break-after: avoid; }
+        .print-section h3 { font-size: 10.5pt; margin: 5mm 0 2mm; }
         .print-section { margin-top: 6mm; }
         .print-section h2 { border-bottom: 1px solid #777; font-size: 12pt; margin: 0 0 3mm; padding-bottom: 1.5mm; }
         .print-details { display: grid; gap: 3mm 7mm; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }

@@ -6,13 +6,17 @@ use App\Models\Actuacion;
 use App\Models\Causa;
 use App\Models\Ciudad;
 use App\Models\Direccion;
+use App\Models\DocumentoCausa;
 use App\Models\EstadoCausa;
 use App\Models\EstadoProcesal;
 use App\Models\Juzgado;
 use App\Models\Materia;
 use App\Models\MovimientoFinanciero;
+use App\Models\PjudMovimiento;
+use App\Models\Recordatorio;
 use App\Models\Submateria;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 
 test('un usuario autorizado visualiza el detalle imprimible completo de una causa', function () {
     $administrador = User::factory()->administrador()->create(['name' => 'Administradora SLAD']);
@@ -106,4 +110,39 @@ test('el listado imprime todas las causas que cumplen los filtros aplicados', fu
         ->assertSee('window.setTimeout')
         ->assertSee('size: 13in 8.5in')
         ->assertSee('slad-main');
+});
+
+test('la impresión incluye todas las actuaciones, documentos, recordatorios y el monitoreo PJUD de la causa', function () {
+    Queue::fake();
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create(['numero_causa' => '1436-2026', 'observacion_importante' => null]);
+
+    foreach (range(1, 25) as $numero) {
+        Actuacion::factory()->for($causa)->create(['descripcion' => "Actuación número {$numero} de la causa."]);
+    }
+    DocumentoCausa::factory()->create(['causa_id' => $causa->id, 'nombre_original' => 'certificado-deuda.pdf', 'descripcion' => 'Certificado de deuda']);
+    Recordatorio::factory()->create(['causa_id' => $causa->id, 'titulo' => 'Revisar notificación', 'descripcion' => 'Llamar al receptor']);
+    PjudMovimiento::query()->create([
+        'causa_id' => $causa->id, 'tribunal_pjud_codigo' => 4901014, 'fecha_estado_diario' => '2026-11-10',
+        'numero_ingreso' => '1436-2026', 'tipo_coincidencia' => 'exacta', 'tribunal_nombre' => 'CORTE DE APELACIONES DE TEMUCO',
+        'tramite' => '2', 'huella' => hash('sha256', 'impresion-'.$causa->id),
+    ]);
+
+    $respuesta = $this->actingAs($administrador)->get(route('causas.show', $causa))->assertOk();
+
+    foreach (range(1, 25) as $numero) {
+        $respuesta->assertSee("Actuación número {$numero} de la causa.");
+    }
+
+    $respuesta
+        ->assertSee('Sin observaciones importantes registradas.')
+        ->assertSee('Monitoreo Poder Judicial (PJUD)')
+        ->assertSee('2 providencias dictadas este día')
+        ->assertSee('Documentos adjuntos')
+        ->assertSee('certificado-deuda.pdf')
+        ->assertSee('Recordatorios')
+        ->assertSee('Revisar notificación')
+        ->assertSee('Llamar al receptor')
+        ->assertSee('[data-flux-header]', false)
+        ->assertDontSee('.print-section, .print-entry', false);
 });
